@@ -23,7 +23,7 @@ endif
 ifeq ($(IFACES),yes)
    BIN_TARGETS += test_gyre_mesa
    LIB_TARGETS += libgyre_mesa
-   INC_FILES += gyre_mesa_m.mod
+   INC_FILES += gyre_mesa_m.mod gyre_tides_mesa_m.mod
 endif
 
 # Source file lists & related variables
@@ -117,7 +117,7 @@ libgyre_SRCS = adhoc_angular_m.fypp ad_bound_m.fypp ad_bvp_m.fypp ad_diff_m.fypp
    trapz_diff_m.fypp txt_writer_m.fypp util_m.fypp version_m.fypp			\
    wave_m.fypp wdec_file_m.fypp writer_m.fypp
 
-libgyre_mesa_SRCS = gyre_mesa_m.fypp
+libgyre_mesa_SRCS = gyre_mesa_m.fypp gyre_tides_mesa_m.fypp
 libgyre_mesa_USES = $(libgyre_SRCS)
 libgyre_mesa_LIBS = libgyre
 
