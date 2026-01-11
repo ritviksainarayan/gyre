@@ -1,0 +1,298 @@
+! Module : gyre_tides_mesa_m
+! Purpose : compute tidal response from MESA for binary evolution
+!
+! Inputs from MESA: profile file, orbital parameters (Omega_orb, q, e)
+! Intermediaries : l,m,k,id,omega,Omega_orb,Omega_rot_ref,R_a,q,e,cbar,x_ref,eul_Phi_ref, Gbar_E
+! Outputs to MESA: jdot_ls (tidal torque), edot_tidal (tidal dissipation)
+
+#:include 'gyre.inc'
+
+module gyre_tides_mesa_m
+
+
+   use forum_m, only : RD
+
+   use gyre_m
+
+   use ISO_FORTRAN_ENV
+
+   ! No implicit typing
+
+   implicit none (type, external)
+
+   ! variables for accumulating tidal evolution rates
+
+   real(RD), save :: jdot_ls_total     ! Total tidal torque
+   real(RD), save :: edot_tidal_total  ! Total tidal dissipation
+
+   ! Module variables for storing tidal intermediaries
+
+   integer, parameter :: MAX_RESPONSES = 10000
+   integer, save :: n_resp = 0
+
+   integer, allocatable, save  :: resp_l(:)
+   integer, allocatable, save  :: resp_m(:)
+   integer, allocatable, save  :: resp_k(:)
+   integer, allocatable, save  :: resp_id(:)
+   real(RD), allocatable, save :: resp_omega(:)
+   real(RD), allocatable, save :: resp_Omega_orb(:)
+   real(RD), allocatable, save :: resp_Omega_rot_ref(:)
+   real(RD), allocatable, save :: resp_R_a(:)
+   real(RD), allocatable, save :: resp_q(:)
+   real(RD), allocatable, save :: resp_e(:)
+   real(RD), allocatable, save :: resp_cbar(:)
+   real(RD), allocatable, save :: resp_x_ref(:)
+   complex(RD), allocatable, save :: resp_eul_Phi_ref(:)
+   real(RD), allocatable, save :: resp_Gbar_E(:)
+
+   public :: eval_tidal_evolution
+   public :: get_n_resp
+   public :: get_resp_arrays
+   public :: get_jdot_ls
+   public :: get_edot_tidal
+
+
+   private
+
+contains
+
+   !****
+
+   subroutine eval_tidal_evolution(global_data, point_data, version, &
+                                     Omega_orb_in, Omega_orb_units, &
+                                     q_in, e_in, &
+                                     Omega_rot_in, Omega_rot_units, &
+                                     l_min, l_max, m_min, m_max, k_min, k_max, &
+                                     ierr)
+
+      ! Inputs: MESA stellar structure data (from star_get_pulse_data)
+      real(RD), intent(in)         :: global_data(:)
+      real(RD), intent(in)         :: point_data(:,:)
+      integer, intent(in)          :: version
+
+      ! Inputs: orbital parameters
+      real(RD), intent(in)         :: Omega_orb_in
+      character(len=*), intent(in) :: Omega_orb_units
+      real(RD), intent(in)         :: q_in
+      real(RD), intent(in)         :: e_in
+      real(RD), intent(in)         :: Omega_rot_in
+      character(len=*), intent(in) :: Omega_rot_units
+      integer, intent(in)          :: l_min, l_max, m_min, m_max, k_min, k_max
+      integer, intent(out)         :: ierr
+
+      ! Local variables
+      type(evol_model_t), pointer  :: em
+      class(model_t), pointer      :: ml
+      type(model_par_t)            :: ml_p
+      type(grid_par_t)             :: gr_p
+      type(num_par_t)              :: nm_p
+      type(orbit_par_t)            :: or_p
+      type(osc_par_t)              :: os_p
+      type(rot_par_t)              :: rt_p
+      type(tide_par_t)             :: td_p
+
+      ierr = 0
+
+      jdot_ls_total = 0._RD
+      edot_tidal_total = 0._RD
+      n_resp = 0
+
+      ! Allocate storage for response data
+      if (.not. allocated(resp_l)) then
+         allocate(resp_l(MAX_RESPONSES))
+         allocate(resp_m(MAX_RESPONSES))
+         allocate(resp_k(MAX_RESPONSES))
+         allocate(resp_id(MAX_RESPONSES))
+         allocate(resp_omega(MAX_RESPONSES))
+         allocate(resp_Omega_orb(MAX_RESPONSES))
+         allocate(resp_Omega_rot_ref(MAX_RESPONSES))
+         allocate(resp_R_a(MAX_RESPONSES))
+         allocate(resp_q(MAX_RESPONSES))
+         allocate(resp_e(MAX_RESPONSES))
+         allocate(resp_cbar(MAX_RESPONSES))
+         allocate(resp_x_ref(MAX_RESPONSES))
+         allocate(resp_eul_Phi_ref(MAX_RESPONSES))
+         allocate(resp_Gbar_E(MAX_RESPONSES))
+      end if
+
+      ! Initialize MESA model from data arrays
+      call init_mesa_model(ml_p, global_data, point_data, version, em)
+      ml => em
+
+      ! Set up grid parameters (use default scaffold from model)
+      gr_p%scaffold_src = 'MODEL'
+      gr_p%n_iter_max = 32
+
+      ! Set up numerical parameters
+      nm_p%diff_scheme = 'COLLOC_GL2'
+
+      ! Set up orbital parameters
+      or_p%Omega_orb = Omega_orb_in
+      or_p%Omega_orb_units = trim(Omega_orb_units)
+      or_p%q = q_in
+      or_p%e = e_in
+
+      ! Set up oscillation parameters
+      os_p%outer_bound = 'VACUUM'
+      os_p%nonadiabatic = .TRUE.
+      os_p%alpha_trb = 0._RD  ! No turbulent dissipation by default
+
+      ! Set up rotation parameters
+      rt_p%Omega_rot = Omega_rot_in
+      rt_p%Omega_rot_source = 'UNIFORM'
+      rt_p%Omega_rot_units = trim(Omega_rot_units)
+      rt_p%coriolis_method = 'NULL'  
+
+      ! Set up tide parameters
+      td_p%l_min = l_min
+      td_p%l_max = l_max
+      td_p%m_min = m_min
+      td_p%m_max = m_max
+      td_p%k_min = k_min
+      td_p%k_max = k_max
+      td_p%alpha_frq = 1._RD 
+      td_p%y_T_thresh_abs = 0._RD
+      td_p%y_T_thresh_rel = 0._RD
+      td_p%omega_c_thresh = 1E-10_RD
+
+      ! Evaluate tidal response
+      call eval_resp(ml, process_response, gr_p, nm_p, or_p, os_p, rt_p, td_p)
+
+      deallocate(ml)
+
+      return
+
+   end subroutine eval_tidal_evolution
+
+   !****
+
+   subroutine process_response(rs)
+
+      type(resp_t), intent(in) :: rs
+
+      type(context_t) :: cx
+      type(grid_t)    :: gr
+      real(RD)        :: Omega_rot_ref
+      integer         :: j_ref
+
+      n_resp = n_resp + 1
+
+      if (n_resp > MAX_RESPONSES) then
+         write(ERROR_UNIT, *) 'ERROR: Too many tidal responses (max=', MAX_RESPONSES, ')'
+         return
+      end if
+
+      resp_l(n_resp) = rs%l
+      resp_m(n_resp) = rs%m
+      resp_k(n_resp) = rs%k
+      resp_id(n_resp) = rs%id
+
+      cx = rs%context()
+      gr = rs%grid()
+
+      resp_omega(n_resp) = REAL(rs%omega)
+
+      resp_Omega_orb(n_resp) = rs%Omega_orb('NONE')
+      resp_q(n_resp) = rs%or_p%q
+      resp_e(n_resp) = rs%or_p%e
+
+      resp_R_a(n_resp) = rs%R_a()
+
+      resp_cbar(n_resp) = rs%cbar()
+
+      resp_Gbar_E(n_resp) = rs%Gbar_E()
+
+      j_ref = rs%n
+      resp_x_ref(n_resp) = rs%x(j_ref)
+      resp_eul_Phi_ref(n_resp) = rs%eul_Phi(j_ref)
+
+      Omega_rot_ref = cx%Omega_rot(gr%pt(j_ref))
+      resp_Omega_rot_ref(n_resp) = Omega_rot_ref
+
+      return
+
+   end subroutine process_response
+
+   !****
+
+   function get_n_resp() result(n)
+
+      integer :: n
+
+      ! Return the number of tidal responses computed
+
+      n = n_resp
+
+      return
+
+   end function get_n_resp
+
+   !****
+
+   subroutine get_resp_arrays(l, m, k, id, omega, Omega_orb, Omega_rot_ref, &
+                               R_a, q, e, cbar, x_ref, eul_Phi_ref, Gbar_E, n)
+
+      integer, intent(out), optional  :: l(:)
+      integer, intent(out), optional  :: m(:)
+      integer, intent(out), optional  :: k(:)
+      integer, intent(out), optional  :: id(:)
+      real(RD), intent(out), optional :: omega(:)
+      real(RD), intent(out), optional :: Omega_orb(:)
+      real(RD), intent(out), optional :: Omega_rot_ref(:)
+      real(RD), intent(out), optional :: R_a(:)
+      real(RD), intent(out), optional :: q(:)
+      real(RD), intent(out), optional :: e(:)
+      real(RD), intent(out), optional :: cbar(:)
+      real(RD), intent(out), optional :: x_ref(:)
+      complex(RD), intent(out), optional :: eul_Phi_ref(:)
+      real(RD), intent(out), optional :: Gbar_E(:)
+      integer, intent(out), optional  :: n
+
+      if (present(n)) n = n_resp
+
+      ! Copy requested arrays
+      if (present(l)) l(1:n_resp) = resp_l(1:n_resp)
+      if (present(m)) m(1:n_resp) = resp_m(1:n_resp)
+      if (present(k)) k(1:n_resp) = resp_k(1:n_resp)
+      if (present(id)) id(1:n_resp) = resp_id(1:n_resp)
+      if (present(omega)) omega(1:n_resp) = resp_omega(1:n_resp)
+      if (present(Omega_orb)) Omega_orb(1:n_resp) = resp_Omega_orb(1:n_resp)
+      if (present(Omega_rot_ref)) Omega_rot_ref(1:n_resp) = resp_Omega_rot_ref(1:n_resp)
+      if (present(R_a)) R_a(1:n_resp) = resp_R_a(1:n_resp)
+      if (present(q)) q(1:n_resp) = resp_q(1:n_resp)
+      if (present(e)) e(1:n_resp) = resp_e(1:n_resp)
+      if (present(cbar)) cbar(1:n_resp) = resp_cbar(1:n_resp)
+      if (present(x_ref)) x_ref(1:n_resp) = resp_x_ref(1:n_resp)
+      if (present(eul_Phi_ref)) eul_Phi_ref(1:n_resp) = resp_eul_Phi_ref(1:n_resp)
+      if (present(Gbar_E)) Gbar_E(1:n_resp) = resp_Gbar_E(1:n_resp)
+
+      return
+
+   end subroutine get_resp_arrays
+
+   !****
+
+   function get_jdot_ls() result(jdot)
+
+      real(RD) :: jdot
+
+
+      jdot = jdot_ls_total
+
+      return
+
+   end function get_jdot_ls
+
+   !****
+
+   function get_edot_tidal() result(edot)
+
+      real(RD) :: edot
+      
+      edot = edot_tidal_total
+
+      return
+
+   end function get_edot_tidal
+
+end module gyre_tides_mesa_m
