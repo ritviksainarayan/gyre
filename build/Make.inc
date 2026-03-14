@@ -110,8 +110,6 @@ else
    FPPFLAGS += -DLOG_LEVEL=\'INFO\'
 endif
 
-FPPFLAGS += -DCONTIG_ARRAYS=1
-
 # Rules
 
 %.f90 : %.fypp | $(DEPEND_DIR)

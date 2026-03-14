@@ -150,16 +150,8 @@ contains
 
       class(nad_diff_t), intent(in)        :: this
       class(state_ct), intent(in)          :: st
-      #:if defined('CONTIG_ARRAYS')
       complex(RD), contiguous, intent(out) :: E_l(:,:)
       complex(RD), contiguous, intent(out) :: E_r(:,:)
-      #:elif defined('EXPLICIT_ARRAYS')
-      complex(RD), intent(out)             :: E_l(this%n_e,this%n_e)
-      complex(RD), intent(out)             :: E_r(this%n_e,this%n_e)
-      #:else
-      complex(RD), intent(out)             :: E_l(:,:)
-      complex(RD), intent(out)             :: E_r(:,:)
-      #:endif
       type(ext_ct), intent(out)            :: scl
 
       logical, parameter :: MAGNUS_EIGVAL_MASK(3) = [.FALSE.,.FALSE.,.TRUE.]
@@ -208,16 +200,8 @@ contains
 
       class(nad_diff_t), intent(in)        :: this
       class(state_ct), intent(in)          :: st
-      #:if defined('CONTIG_ARRAYS')
       complex(RD), contiguous, intent(out) :: E_l(:,:)
       complex(RD), contiguous, intent(out) :: E_r(:,:)
-      #:elif defined('EXPLICIT_ARRAYS')
-      complex(RD), intent(out)             :: E_l(this%n_e,this%n_e)
-      complex(RD), intent(out)             :: E_r(this%n_e,this%n_e)
-      #:else
-      complex(RD), intent(out)             :: E_l(:,:)
-      complex(RD), intent(out)             :: E_r(:,:)
-      #:endif
       type(ext_ct), intent(out)            :: scl
 
       ! Build the difference equations (transposed)
@@ -239,13 +223,7 @@ contains
 
       class(nad_diff_t), intent(in)        :: this
       class(state_ct), intent(in)          :: st
-      #:if defined('CONTIG_ARRAYS')
       complex(RD), contiguous, intent(out) :: E(:,:)
-      #:elif defined('EXPLICIT_ARRAYS')
-      complex(RD), intent(out)             :: E(2*this%n_e,this%n_e)
-      #:else
-      complex(RD), intent(out)             :: E(:,:)
-      #:endif
       type(ext_ct), intent(out)            :: scl
 
       ! Build the difference equations (merged, transposed)

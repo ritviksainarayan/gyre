@@ -47,16 +47,8 @@ module diff_m
             implicit none (type, external)
             class(diff_${S}$), intent(in)  :: this
             class(state_${S}$), intent(in) :: st
-            #:if defined('CONTIG_ARRAYS')
             ${T}$, contiguous, intent(out) :: E_l(:,:)
             ${T}$, contiguous, intent(out) :: E_r(:,:)
-            #:elif defined('EXPLICIT_ARRAYS')
-            ${T}$, intent(out)             :: E_l(this%n_e,this%n_e)
-            ${T}$, intent(out)             :: E_r(this%n_e,this%n_e)
-            #:else
-            ${T}$, intent(out)             :: E_l(:,:)
-            ${T}$, intent(out)             :: E_r(:,:)
-            #:endif
             type(ext_${S}$), intent(out)   :: scl
          end subroutine build_${S}$_
 
@@ -68,13 +60,7 @@ module diff_m
             implicit none (type, external)
             class(diff_${S}$), intent(in)  :: this
             class(state_${S}$), intent(in) :: st
-            #:if defined('CONTIG_ARRAYS')
             ${T}$, contiguous, intent(out) :: E(:,:)
-            #:elif defined('EXPLICIT_ARRAYS')
-            ${T}$, intent(out)             :: E(2*this%n_e,this%n_e)
-            #:else
-            ${T}$, intent(out)             :: E(:,:)
-            #:endif
             type(ext_${S}$), intent(out)   :: scl
          end subroutine build_mt_${S}$_
 
