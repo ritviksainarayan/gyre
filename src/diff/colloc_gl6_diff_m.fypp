@@ -137,83 +137,110 @@ contains
          real(RD), parameter :: B_2 = 2._RD/9._RD
          real(RD), parameter :: B_3 = 5._RD/36._RD
 
-         ${T}$   :: I(this%n_e,this%n_e)
-         ${T}$   :: A_1(this%n_e,this%n_e)
-         ${T}$   :: A_2(this%n_e,this%n_e)
-         ${T}$   :: A_3(this%n_e,this%n_e)
-         ${T}$   :: A_21(this%n_e,this%n_e)
-         ${T}$   :: A_31(this%n_e,this%n_e)
-         ${T}$   :: J(this%n_e,this%n_e)
-         ${T}$   :: M_2(this%n_e,this%n_e)
-         ${T}$   :: M_3(this%n_e,this%n_e)
-         ${T}$   :: K_1(this%n_e,this%n_e)
-         ${T}$   :: K_2(this%n_e,this%n_e)
-         ${T}$   :: K_3(this%n_e,this%n_e)
-         integer :: ipiv(this%n_e)
-
          @:CHECK_BOUNDS(SIZE(E_t, 1), 2*this%n_e)
          @:CHECK_BOUNDS(SIZE(E_t, 2), this%n_e)
 
          ! Build the transposed difference equations
 
-         ! Algorithm note: this is Gauss-Legendre collocation with 3
-         ! intermediate points. The implementation follows the
-         ! approach in the StORM code
+         select case(this%n_e)
+         case(2)
+            call build_2_${S}$_()
+         case(4)
+            call build_4_${S}$_()
+         case(6)
+            call build_6_${S}$_()
+         case default
+            call build_gen_${S}$_()
+         end select
 
-         I = identity_matrix(this%n_e)
-
-         ! Evaluate the jump matrix. Use an associate construct to
-         ! reduce the amount of local storage required (but be careful
-         ! not to alias lhs and rhs!)
-
-         call this%eq(1)%eval_A(st, this%dx, A_1)
-         call this%eq(2)%eval_A(st, this%dx, A_2)
-
-         A_21 = D_21*MATMUL(A_2, A_1)
-
-         M_2 = I - D_12*A_21
-         K_1 = D_23*A_2 - D_13*A_21
-         K_2 = A_2 - A_21
-
-         call LA_GETRF(M_2, ipiv)
-         call LA_GETRS(M_2, ipiv, K_1)
-         call LA_GETRS(M_2, ipiv, K_2)
-
-         !
-
-         call this%eq(3)%eval_A(st, this%dx, A_3)
-
-         A_31 = D_31*MATMUL(A_3, A_1)
-
-         M_2 = D_32*A_3 - D_12*A_31
-         M_3 = I - D_13*A_31 - MATMUL(M_2, K_1)
-         K_3 = A_3 - A_31 - MATMUL(M_2, K_2)
-
-         call LA_GESV(M_3, K_3)
-
-         !
-
-         K_2 = K_2 - MATMUL(K_1, K_3)
-         K_1 = MATMUL(A_1, I-D_12*K_2-D_13*K_3)
-
-         !
-
-         J = B_1*K_1 + B_2*K_2 + B_3*K_3
-
-         ! Assemble the difference equations
-
-         associate (n_e => this%n_e)
-
-            E_t(:n_e,:) = TRANSPOSE(J + I)
-            E_t(n_e+1:,:) = TRANSPOSE(J - I)
-
-            scl = ONE_${S}$
-
-         end associate
+         scl = ONE_${S}$
 
          ! Finish
 
          return
+
+      contains
+
+         #:for I, N_E in [ &
+            ['2', 2], &
+            ['4', 4], &
+            ['6', 6], &
+            ['gen', 'this%n_e']]
+
+            subroutine build_${I}$_${S}$_()
+
+               ${T}$   :: I(${N_E}$,${N_E}$)
+               ${T}$   :: A_1(${N_E}$,${N_E}$)
+               ${T}$   :: A_2(${N_E}$,${N_E}$)
+               ${T}$   :: A_3(${N_E}$,${N_E}$)
+               ${T}$   :: A_21(${N_E}$,${N_E}$)
+               ${T}$   :: A_31(${N_E}$,${N_E}$)
+               ${T}$   :: J(${N_E}$,${N_E}$)
+               ${T}$   :: M_2(${N_E}$,${N_E}$)
+               ${T}$   :: M_3(${N_E}$,${N_E}$)
+               ${T}$   :: K_1(${N_E}$,${N_E}$)
+               ${T}$   :: K_2(${N_E}$,${N_E}$)
+               ${T}$   :: K_3(${N_E}$,${N_E}$)
+               integer :: ipiv(${N_E}$)
+
+               ! Algorithm note: this is Gauss-Legendre collocation with 3
+               ! intermediate points. The implementation follows the
+               ! approach in the StORM code
+
+               associate (n_e => ${N_E}$)
+
+                  I = identity_matrix(n_e)
+
+                  ! Evaluate the jump matrix
+
+                  call this%eq(1)%eval_A(st, this%dx, A_1)
+                  call this%eq(2)%eval_A(st, this%dx, A_2)
+
+                  A_21 = D_21*MATMUL(A_2, A_1)
+
+                  M_2 = I - D_12*A_21
+                  K_1 = D_23*A_2 - D_13*A_21
+                  K_2 = A_2 - A_21
+
+                  call LA_GETRF(M_2, ipiv)
+                  call LA_GETRS(M_2, ipiv, K_1)
+                  call LA_GETRS(M_2, ipiv, K_2)
+
+                  !
+
+                  call this%eq(3)%eval_A(st, this%dx, A_3)
+
+                  A_31 = D_31*MATMUL(A_3, A_1)
+
+                  M_2 = D_32*A_3 - D_12*A_31
+                  M_3 = I - D_13*A_31 - MATMUL(M_2, K_1)
+                  K_3 = A_3 - A_31 - MATMUL(M_2, K_2)
+
+                  call LA_GESV(M_3, K_3)
+
+                  !
+
+                  K_2 = K_2 - MATMUL(K_1, K_3)
+                  K_1 = MATMUL(A_1, I-D_12*K_2-D_13*K_3)
+
+                  !
+
+                  J = B_1*K_1 + B_2*K_2 + B_3*K_3
+
+                  ! Assemble the difference equations
+
+                  E_t(:n_e,:) = TRANSPOSE(J + I)
+                  E_t(n_e+1:,:) = TRANSPOSE(J - I)
+
+               end associate
+
+               ! Finish
+
+               return
+
+            end subroutine build_${I}$_${S}$_
+
+         #:endfor
 
       end subroutine build_${S}$_
 
