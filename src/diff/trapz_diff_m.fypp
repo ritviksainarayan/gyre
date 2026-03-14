@@ -151,13 +151,13 @@ contains
 
                ! Evaluate the RHS matrix
 
-               call this%eq(1)%eval_A(st, this%dx, A(:,:,1))
-               call this%eq(2)%eval_A(st, this%dx, A(:,:,2))
+               call this%eq(1)%eval_A_t(st, this%dx, A(:,:,1))
+               call this%eq(2)%eval_A_t(st, this%dx, A(:,:,2))
 
                ! Build the difference equations
 
-               E_t(:n_e,:) = -identity_matrix(this%n_e) - MATMUL(TRANSPOSE(A(:,:,1)), diagonal_matrix(1._RD-this%w))
-               E_t(n_e+1:,:) =  identity_matrix(this%n_e) - MATMUL(TRANSPOSE(A(:,:,2)), diagonal_matrix(this%w))
+               E_t(:n_e,:) = -identity_matrix(this%n_e) - MATMUL(A(:,:,1), diagonal_matrix(1._RD-this%w))
+               E_t(n_e+1:,:) =  identity_matrix(this%n_e) - MATMUL(A(:,:,2), diagonal_matrix(this%w))
 
                scl = ONE_${S}$
 

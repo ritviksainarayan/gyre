@@ -56,9 +56,9 @@ module magnus_diff_m
 
       type, extends(diff_${S}$) :: magnus_diff_${S}$
          private
-         class(eqns_${S}$), allocatable         :: eq(:)
-         real(RD)                               :: dx
-         procedure(eval_dOmega_${S}$_), pointer :: eval_dOmega_
+         class(eqns_${S}$), allocatable           :: eq(:)
+         real(RD)                                 :: dx
+         procedure(eval_dOmega_t_${S}$_), pointer :: eval_dOmega_t_
       contains
          private
          procedure, public :: build => build_${S}$_
@@ -67,15 +67,15 @@ module magnus_diff_m
       ! Interfaces
 
       abstract interface
-         subroutine eval_dOmega_${S}$_(this, st, dOmega)
+         subroutine eval_dOmega_t_${S}$_(this, st, dOmega_t)
             use forum_m, only: RD
             use state_m, only: state_${S}$
             import magnus_diff_${S}$
             implicit none (type, external)
             class(magnus_diff_${S}$), intent(in) :: this
             class(state_${S}$), intent(in)       :: st
-            ${T}$, intent(out)                   :: dOmega(:,:)
-         end subroutine eval_dOmega_${S}$_
+            ${T}$, intent(out)                   :: dOmega_t(:,:)
+         end subroutine eval_dOmega_t_${S}$_
       end interface
 
       interface magnus_diff_${S}$
@@ -121,13 +121,13 @@ contains
 
          select case (scheme)
          case ('GL2')
-            df%eval_dOmega_ => eval_dOmega_GL2_${S}$_
+            df%eval_dOmega_t_ => eval_dOmega_t_GL2_${S}$_
             c_i = GL2_C_I
          case ('GL4')
-            df%eval_dOmega_ => eval_dOmega_GL4_${S}$_
+            df%eval_dOmega_t_ => eval_dOmega_t_GL4_${S}$_
             c_i = GL4_C_I
          case ('GL6')
-            df%eval_dOmega_ => eval_dOmega_GL6_${S}$_
+            df%eval_dOmega_t_ => eval_dOmega_t_GL6_${S}$_
             c_i = GL6_C_I
          case default
             @:ABORT('invalid scheme')
@@ -175,9 +175,9 @@ contains
 
          ! Build the transposed difference equations
 
-         ! Evaluate the Magnus slope matrix
+         ! Evaluate the transposed Magnus slope matrix
 
-         call this%eval_dOmega_(st, dOmega)
+         call this%eval_dOmega_t_(st, dOmega)
 
          ! Decompose it
 
@@ -185,49 +185,49 @@ contains
 
          ! Build the difference equations
 
-         if (UPWIND) then
-
-            ! Use 'upwinding' for stability
-
-            do i = 1, this%n_e
-               if (REAL(lambda(i)) >= 0._RD) then
-                  E_r(:,i) = V_r(:,i)*exp(-lambda(i)*this%dx)
-                  E_l(:,i) = -V_r(:,i)
-               else
-                  E_r(:,i) = V_r(:,i)
-                  E_l(:,i) = -V_r(:,i)*exp(lambda(i)*this%dx)
-               endif
-            end do
-
-            E_l = MATMUL(E_l, V_l)
-            E_r = MATMUL(E_r, V_l)
-
-            scl = exp(ext_${S}$(SUM(lambda, MASK=REAL(lambda) >= 0._RD)*this%dx))
-
-         else
-
-            ! Use the [TowTei2013] expression (their eqns. 4, 16, 18)
-
-            do i = 1, this%n_e
-               E_r(:,i) = 0._RD
-               E_r(i,i) = 1._RD
-               E_l(:,i) = -V_r(:,i)*exp(lambda(i)*this%dx)
-            end do
-
-            E_l = MATMUL(E_l, V_l)
-
-            scl = ONE_${S}$
-
-         endif
-
          associate (n_e => this%n_e)
 
+            if (UPWIND) then
+
+               ! Use 'upwinding' for stability
+
+               do i = 1, n_e
+                  if (REAL(lambda(i)) >= 0._RD) then
+                     E_r(:,i) = V_r(:,i)*exp(-lambda(i)*this%dx)
+                     E_l(:,i) = -V_r(:,i)
+                  else
+                     E_r(:,i) = V_r(:,i)
+                     E_l(:,i) = -V_r(:,i)*exp(lambda(i)*this%dx)
+                  endif
+               end do
+
+               E_l = MATMUL(E_l, V_l)
+               E_r = MATMUL(E_r, V_l)
+
+               scl = exp(ext_${S}$(SUM(lambda, MASK=REAL(lambda) >= 0._RD)*this%dx))
+
+            else
+
+               ! Use the [TowTei2013] expression (their eqns. 4, 16, 18)
+
+               do i = 1, n_e
+                  E_r(:,i) = 0._RD
+                  E_r(i,i) = 1._RD
+                  E_l(:,i) = -V_r(:,i)*exp(lambda(i)*this%dx)
+               end do
+
+               E_l = MATMUL(E_l, V_l)
+
+               scl = ONE_${S}$
+
+            endif
+
             #:if T == 'real(RD)'
-               E_t(:n_e,:) = TRANSPOSE(REAL(E_l))
-               E_t(n_e+1:,:) = TRANSPOSE(REAL(E_r))
+               E_t(:n_e,:) = REAL(E_l)
+               E_t(n_e+1:,:) = REAL(E_r)
             #:elif T == 'complex(RD)'
-               E_t(:n_e,:) = TRANSPOSE(E_l)
-               E_t(n_e+1:,:) = TRANSPOSE(E_r)
+               E_t(:n_e,:) = E_l
+               E_t(n_e+1:,:) = E_r
             #:else
                #:stop f'invalid type {T}'
             #:endif
@@ -242,32 +242,32 @@ contains
 
       !****
 
-      subroutine eval_dOmega_GL2_${S}$_(this, st, dOmega)
+      subroutine eval_dOmega_t_GL2_${S}$_(this, st, dOmega_t)
 
          class(magnus_diff_${S}$), intent(in) :: this
          class(state_${S}$), intent(in)       :: st
-         ${T}$, intent(out)                   :: dOmega(:,:)
+         ${T}$, intent(out)                   :: dOmega_t(:,:)
 
          @:CHECK_BOUNDS(SIZE(dOmega, 1), this%n_e)
          @:CHECK_BOUNDS(SIZE(dOmega, 2), this%n_e)
 
-         ! Evaluate the GL2 Magnus slope matrix
+         ! Evaluate the transposed GL2 Magnus slope matrix
 
-         call this%eq(1)%eval_A(st, 1._RD, dOmega)
+         call this%eq(1)%eval_A_t(st, 1._RD, dOmega_t)
 
          ! Finish
 
          return
 
-      end subroutine eval_dOmega_GL2_${S}$_
+      end subroutine eval_dOmega_t_GL2_${S}$_
 
       !****
 
-      subroutine eval_dOmega_GL4_${S}$_(this, st, dOmega)
+      subroutine eval_dOmega_t_GL4_${S}$_(this, st, dOmega_t)
 
          class(magnus_diff_${S}$), intent(in) :: this
          class(state_${S}$), intent(in)       :: st
-         ${T}$, intent(out)                   :: dOmega(:,:)
+         ${T}$, intent(out)                   :: dOmega_t(:,:)
 
          ${T}$ :: A(this%n_e,this%n_e,2)
          ${T}$ :: dalpha(this%n_e,this%n_e,2)
@@ -275,35 +275,35 @@ contains
          @:CHECK_BOUNDS(SIZE(dOmega, 1), this%n_e)
          @:CHECK_BOUNDS(SIZE(dOmega, 2), this%n_e)
 
-         ! Evaluate the GL4 Magnus slope matrix
+         ! Evaluate the transposed GL4 Magnus slope matrix
 
          ! Calculate the RHS matrices
 
-         call this%eq(1)%eval_A(st, 1._RD, A(:,:,1))
-         call this%eq(2)%eval_A(st, 1._RD, A(:,:,2))
+         call this%eq(1)%eval_A_t(st, 1._RD, A(:,:,1))
+         call this%eq(2)%eval_A_t(st, 1._RD, A(:,:,2))
 
-         ! Set up the Magnus slope matrix (Blanes et al. 2009, eqns. 243
-         ! and 253; note that the 12 in the denominator of their expression
-         ! for alpha_2 is erroneous)
+         ! Set up the transposed lope matrix (Blanes et al. 2009,
+         ! eqns. 243 and 253; note that the 12 in the denominator of
+         ! their expression for alpha_2 is erroneous)
 
          dalpha(:,:,1) = 0.5_RD*(A(:,:,1) + A(:,:,2))
          dalpha(:,:,2) = sqrt(3._RD)*(A(:,:,2) - A(:,:,1))
 
-         dOmega = dalpha(:,:,1) - this%dx*commutator(dalpha(:,:,1), dalpha(:,:,2))/12._RD
+         dOmega_t = dalpha(:,:,1) - this%dx*commutator(dalpha(:,:,2), dalpha(:,:,1))/12._RD
 
          ! Finish
 
          return
 
-      end subroutine eval_dOmega_GL4_${S}$_
+      end subroutine eval_dOmega_t_GL4_${S}$_
 
       !****
 
-      subroutine eval_dOmega_GL6_${S}$_(this, st, dOmega)
+      subroutine eval_dOmega_t_GL6_${S}$_(this, st, dOmega_t)
 
          class(magnus_diff_${S}$), intent(in) :: this
          class(state_${S}$), intent(in)       :: st
-         ${T}$, intent(out)                   :: dOmega(:,:)
+         ${T}$, intent(out)                   :: dOmega_t(:,:)
 
          ${T}$ :: A(this%n_e,this%n_e,3)
          ${T}$ :: dalpha(this%n_e,this%n_e,3)
@@ -312,32 +312,32 @@ contains
          @:CHECK_BOUNDS(SIZE(dOmega, 1), this%n_e)
          @:CHECK_BOUNDS(SIZE(dOmega, 2), this%n_e)
 
-         ! Evaluate the GL6 Magnus slope matrix
+         ! Evaluate the transposed GL6 Magnus slope matrix
 
          ! Calculate the RHS matrices
 
-         call this%eq(1)%eval_A(st, 1._RD, A(:,:,1))
-         call this%eq(2)%eval_A(st, 1._RD, A(:,:,2))
-         call this%eq(3)%eval_A(st, 1._RD, A(:,:,3))
+         call this%eq(1)%eval_A_t(st, 1._RD, A(:,:,1))
+         call this%eq(2)%eval_A_t(st, 1._RD, A(:,:,2))
+         call this%eq(3)%eval_A_t(st, 1._RD, A(:,:,3))
 
-         ! Set up the Magnus slope matrix (Blanes et al. 2009, eqns. 251
-         ! and 257)
+         ! Set up the transposed slope matrix (Blanes et al. 2009,
+         ! eqns. 251 and 257)
 
          dalpha(:,:,1) = A(:,:,2)
          dalpha(:,:,2) = sqrt(15._RD)*(A(:,:,3) - A(:,:,1))/3
          dalpha(:,:,3) = 10*(A(:,:,3) - 2*A(:,:,2) + A(:,:,1))/3
 
-         dC(:,:,1) = this%dx*commutator(dalpha(:,:,1), dalpha(:,:,2))
-         dC(:,:,2) = -this%dx*commutator(dalpha(:,:,1), 2*dalpha(:,:,3)+dC(:,:,1))/60
+         dC(:,:,1) = this%dx*commutator(dalpha(:,:,2), dalpha(:,:,1))
+         dC(:,:,2) = -this%dx*commutator(2*dalpha(:,:,3)+dC(:,:,1), dalpha(:,:,1))/60
 
-         dOmega = dalpha(:,:,1) + dalpha(:,:,3)/12 + &
-            this%dx*commutator(-20*dalpha(:,:,1)-dalpha(:,:,3)+dC(:,:,1), dalpha(:,:,2)+dC(:,:,2))/240
+         dOmega_t = dalpha(:,:,1) + dalpha(:,:,3)/12 + &
+            this%dx*commutator(dalpha(:,:,2)+dC(:,:,2), -20*dalpha(:,:,1)-dalpha(:,:,3)+dC(:,:,1))/240
 
          ! Finish
 
          return
 
-      end subroutine eval_dOmega_GL6_${S}$_
+      end subroutine eval_dOmega_t_GL6_${S}$_
 
    #:endfor
 
