@@ -45,15 +45,12 @@ module colloc_gl2_diff_m
 
       type, extends(diff_${S}$) :: colloc_gl2_diff_${S}$
          private
-         class(eqns_${S}$), allocatable      :: eq(:)
-         real(RD)                            :: dx
-         logical                             :: reverse
-         procedure(build_mt_${S}$_), pointer :: build_mt_
+         class(eqns_${S}$), allocatable :: eq(:)
+         real(RD)                       :: dx
+         logical                        :: reverse
       contains
          private
          procedure, public :: build => build_${S}$_
-         procedure, public :: build_t => build_t_${S}$_
-         procedure, public :: build_mt => build_mt_switched_${S}$_
       end type colloc_gl2_diff_${S}$
 
       ! Interfaces
@@ -108,12 +105,6 @@ contains
 
          df%n_e = df%eq(1)%n_e
 
-         if (df%n_e == 4) then
-            df%build_mt_ => build_mt_4_${S}$_
-         else
-            df%build_mt_ => build_mt_generic_${S}$_
-         end if
-
          ! Finish
 
          return
@@ -122,200 +113,24 @@ contains
 
       !****
 
-      subroutine build_${S}$_(this, st, E_l, E_r, scl)
+      subroutine build_${S}$_(this, st, E_t, scl)
 
          class(colloc_gl2_diff_${S}$), intent(in) :: this
          class(state_${S}$), intent(in)           :: st
-         ${T}$, contiguous, intent(out)           :: E_l(:,:)
-         ${T}$, contiguous, intent(out)           :: E_r(:,:)
-         type(ext_${S}$), intent(out)             :: scl
-
-         real(RD), parameter :: B_1 = 1._RD/2._RD
-
-         integer :: i
-         integer :: j
-
-         ! Build the difference equations
-
-         ! Algorithm note: this is equivalent to the modified midpoint
-         ! method
-
-         call this%eq(1)%eval_A(st, this%dx*B_1, E_l)
-
-         do j = 1, this%n_e
-
-            do i = 1, this%n_e
-               E_r(i,j) = E_l(i,j)
-            end do
-
-            E_l(j,j) = E_l(j,j) + 1._RD
-            E_r(j,j) = E_r(j,j) - 1._RD
-
-         end do
-
-         scl = ONE_${S}$
-
-         ! Finish
-
-      end subroutine build_${S}$_
-
-      !****
-
-      subroutine build_t_${S}$_(this, st, E_l, E_r, scl)
-
-         class(colloc_gl2_diff_${S}$), intent(in) :: this
-         class(state_${S}$), intent(in)           :: st
-         ${T}$, contiguous, intent(out)           :: E_l(:,:)
-         ${T}$, contiguous, intent(out)           :: E_r(:,:)
-         type(ext_${S}$), intent(out)             :: scl
-
-         real(RD), parameter :: B_1 = 1._RD/2._RD
-
-         integer :: i
-         integer :: j
-
-         ! Build the difference equations (transposed)
-
-         ! Algorithm note: this is equivalent to the modified midpoint
-         ! method
-
-         call this%eq(1)%eval_A_t(st, this%dx*B_1, E_l)
-
-         do j = 1, this%n_e
-
-            do i = 1, this%n_e
-               E_r(i,j) = E_l(i,j)
-            end do
-
-            E_l(j,j) = E_l(j,j) + 1._RD
-            E_r(j,j) = E_r(j,j) - 1._RD
-
-         end do
-
-         scl = ONE_${S}$
-
-         ! Finish
-
-      end subroutine build_t_${S}$_
-
-      !****
-
-      subroutine build_mt_${S}$_(this, st, E, scl)
-
-         class(colloc_gl2_diff_${S}$), intent(in) :: this
-         class(state_${S}$), intent(in)           :: st
-         ${T}$, contiguous, intent(out)           :: E(:,:)
-         type(ext_${S}$), intent(out)             :: scl
-
-         call this%build_mt_(st, E, scl)
-
-      end subroutine build_mt_${S}$_
-
-      !****
-
-      subroutine build_mt_4_${S}$_(this, st, E, scl)
-
-         class(colloc_gl2_diff_${S}$), intent(in) :: this
-         class(state_${S}$), intent(in)           :: st
-         ${T}$, contiguous, intent(out)           :: E(:,:)
+         ${T}$, contiguous, intent(out)           :: E_t(:,:)
          type(ext_${S}$), intent(out)             :: scl
 
          real(RD), parameter :: B_1 = 1._RD/2._RD
 
          integer :: j
 
-         ! Build the difference equations (transposed)
+         @:CHECK_BOUNDS(SIZE(E_t, 1), 2*this%n_e)
+         @:CHECK_BOUNDS(SIZE(E_t, 2), this%n_e)
 
-         ! Algorithm note: this is equivalent to the modified midpoint
-         ! method
+         ! Build the transposed difference equations
 
-         associate (n_e => 4)
-
-            call this%eq(1)%eval_A_t(st, this%dx*B_1, E(:n_e,:))
-
-            do concurrent (j = 1:n_e)
-               E(n_e+1:,j) = E(:n_e,j)
-               E(j,j) = E(j,j) + 1._RD
-               E(j+n_e,j) = E(j+n_e,j) - 1._RD
-            end do
-
-         end associate
-
-         scl = ONE_${S}$
-
-         ! Finish
-
-      end subroutine build_mt_4_${S}$_
-
-      !****
-
-      subroutine build_mt_generic_${S}$_(this, st, E, scl)
-
-         class(colloc_gl2_diff_${S}$), intent(in) :: this
-         class(state_${S}$), intent(in)           :: st
-         ${T}$, contiguous, intent(out)           :: E(:,:)
-         type(ext_${S}$), intent(out)             :: scl
-
-         real(RD), parameter :: B_1 = 1._RD/2._RD
-
-         integer :: i
-         integer :: j
-
-         ! Build the difference equations (transposed)
-
-         ! Algorithm note: this is equivalent to the modified midpoint
-         ! method
-
-         associate (n_e => this%n_e)
-               
-            call this%eq(1)%eval_A_t(st, this%dx*B_1, E(:n_e,:))
-
-            do concurrent (j = 1:n_e)
-               E(n_e+1:,j) = E(:n_e,j)
-            end do
-
-            do concurrent (j = 1:n_e)
-               E(j,j) = E(j,j) + 1._RD
-               E(j+n_e,j) = E(j+n_e,j) - 1._RD
-            end do
-
-         end associate
-
-            ! do j = 1, n_e
-
-            !    do i = 1, n_e
-            !       E(i,j) = (this%dx*B_1)*E(i,j)
-            !       E(i+n_e,j) = E(i,j)
-            !    end do
-
-            !    E(j,j) = E(j,j) + 1._RD
-            !    E(j+n_e,j) = E(j+n_e,j) - 1._RD
-
-            ! end do
-
-         scl = ONE_${S}$
-
-         ! Finish
-
-      end subroutine build_mt_generic_${S}$_
-
-      !****
-      
-      subroutine build_mt_switched_${S}$_(this, st, E, scl)
-
-         class(colloc_gl2_diff_${S}$), intent(in) :: this
-         class(state_${S}$), intent(in)           :: st
-         ${T}$, contiguous, intent(out)           :: E(:,:)
-         type(ext_${S}$), intent(out)             :: scl
-
-         real(RD), parameter :: B_1 = 1._RD/2._RD
-
-         integer :: j
-
-         ! Build the difference equations (transposed)
-
-         ! Algorithm note: this is equivalent to the modified midpoint
-         ! method
+         ! Algorithm note: these routines are equivalent to the
+         ! modified midpoint method
 
          select case(this%n_e)
 
@@ -347,16 +162,14 @@ contains
 
          subroutine build_2_
 
-            integer :: j
-
             associate (n_e => 2)
                
-               call this%eq(1)%eval_A_t(st, this%dx*B_1, E(:n_e,:))
+               call this%eq(1)%eval_A_t(st, this%dx*B_1, E_t(:n_e,:))
 
                do concurrent (j = 1:n_e)
-                  E(n_e+1:,j) = E(:n_e,j)
-                  E(j,j) = E(j,j) + 1._RD
-                  E(j+n_e,j) = E(j+n_e,j) - 1._RD
+                  E_t(n_e+1:,j) = E_t(:n_e,j)
+                  E_t(j,j) = E_t(j,j) + 1._RD
+                  E_t(j+n_e,j) = E_t(j+n_e,j) - 1._RD
                end do
 
             end associate
@@ -373,12 +186,12 @@ contains
 
             associate (n_e => 4)
                
-               call this%eq(1)%eval_A_t(st, this%dx*B_1, E(:n_e,:))
+               call this%eq(1)%eval_A_t(st, this%dx*B_1, E_t(:n_e,:))
 
                do concurrent (j = 1:n_e)
-                  E(n_e+1:,j) = E(:n_e,j)
-                  E(j,j) = E(j,j) + 1._RD
-                  E(j+n_e,j) = E(j+n_e,j) - 1._RD
+                  E_t(n_e+1:,j) = E_t(:n_e,j)
+                  E_t(j,j) = E_t(j,j) + 1._RD
+                  E_t(j+n_e,j) = E_t(j+n_e,j) - 1._RD
                end do
 
             end associate
@@ -395,12 +208,12 @@ contains
 
             associate (n_e => 6)
                
-               call this%eq(1)%eval_A_t(st, this%dx*B_1, E(:n_e,:))
+               call this%eq(1)%eval_A_t(st, this%dx*B_1, E_t(:n_e,:))
 
                do concurrent (j = 1:n_e)
-                  E(n_e+1:,j) = E(:n_e,j)
-                  E(j,j) = E(j,j) + 1._RD
-                  E(j+n_e,j) = E(j+n_e,j) - 1._RD
+                  E_t(n_e+1:,j) = E_t(:n_e,j)
+                  E_t(j,j) = E_t(j,j) + 1._RD
+                  E_t(j+n_e,j) = E_t(j+n_e,j) - 1._RD
                end do
 
             end associate
@@ -417,12 +230,12 @@ contains
 
             associate (n_e => this%n_e)
                
-               call this%eq(1)%eval_A_t(st, this%dx*B_1, E(:n_e,:))
+               call this%eq(1)%eval_A_t(st, this%dx*B_1, E_t(:n_e,:))
 
                do concurrent (j = 1:n_e)
-                  E(n_e+1:,j) = E(:n_e,j)
-                  E(j,j) = E(j,j) + 1._RD
-                  E(j+n_e,j) = E(j+n_e,j) - 1._RD
+                  E_t(n_e+1:,j) = E_t(:n_e,j)
+                  E_t(j,j) = E_t(j,j) + 1._RD
+                  E_t(j+n_e,j) = E_t(j+n_e,j) - 1._RD
                end do
 
             end associate
@@ -433,7 +246,7 @@ contains
 
          end subroutine build_generic_
 
-      end subroutine build_mt_switched_${S}$_
+      end subroutine build_${S}$_
       
    #:endfor
 

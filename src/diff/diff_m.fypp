@@ -31,15 +31,13 @@ module diff_m
          integer :: n_e
       contains
          procedure(build_${S}$_), deferred :: build
-         procedure(build_${S}$_), deferred :: build_t
-         procedure(build_mt_${S}$_), deferred :: build_mt
       end type diff_${S}$
 
       ! Interfaces
 
       abstract interface
 
-         subroutine build_${S}$_(this, st, E_l, E_r, scl)
+         subroutine build_${S}$_(this, st, E_t, scl)
             use forum_m, only: RD
             use ext_m
             use state_m
@@ -47,22 +45,9 @@ module diff_m
             implicit none (type, external)
             class(diff_${S}$), intent(in)  :: this
             class(state_${S}$), intent(in) :: st
-            ${T}$, contiguous, intent(out) :: E_l(:,:)
-            ${T}$, contiguous, intent(out) :: E_r(:,:)
+            ${T}$, contiguous, intent(out) :: E_t(:,:)
             type(ext_${S}$), intent(out)   :: scl
          end subroutine build_${S}$_
-
-         subroutine build_mt_${S}$_(this, st, E, scl)
-            use forum_m, only: RD
-            use ext_m
-            use state_m
-            import diff_${S}$
-            implicit none (type, external)
-            class(diff_${S}$), intent(in)  :: this
-            class(state_${S}$), intent(in) :: st
-            ${T}$, contiguous, intent(out) :: E(:,:)
-            type(ext_${S}$), intent(out)   :: scl
-         end subroutine build_mt_${S}$_
 
       end interface
 

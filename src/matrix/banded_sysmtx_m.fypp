@@ -207,9 +207,7 @@ contains
 
          ${T}$   :: B_i(this%n_i,this%n_e)
          ${T}$   :: B_o(this%n_i,this%n_e)
-         ${T}$   :: E_l(this%n_e,this%n_e)
-         ${T}$   :: E_r(this%n_e,this%n_e)
-         ${T}$   :: R(2*this%n_e)
+         ${T}$   :: E_t(2*this%n_e,this%n_e)
          integer :: i
          ${T}$   :: scl
          integer :: k
@@ -238,14 +236,13 @@ contains
 
             !$OMP PARALLEL
 
-            !$OMP DO PRIVATE(E_l, E_r, i, R, scl)
+            !$OMP DO PRIVATE(E_t, i, scl)
             do k = 1, n
-               call de(k)%df%build(st, E_l, E_r, this%scl(k))
+               call de(k)%df%build(st, E_t, this%scl(k))
                do i = 1, n_e
-                  R = [E_l(i,:),E_r(i,:)]
-                  scl = MAXVAL(abs(R))
+                  scl = MAXVAL(abs(E_t(:,i)))
                   this%scl(k) = this%scl(k)*scl
-                  call this%set_row_(n_e*(k-1)+n_i+i, n_e*(k-1)+1, R/scl)
+                  call this%set_row_(n_e*(k-1)+n_i+i, n_e*(k-1)+1, E_t(:,i)/scl)
                end do
             end do
             !$OMP END DO

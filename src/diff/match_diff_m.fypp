@@ -48,8 +48,6 @@ module match_diff_m
       contains
          private
          procedure, public :: build => build_${S}$_
-         procedure, public :: build_t => build_t_${S}$_
-         procedure, public :: build_mt => build_mt_${S}$_
       end type match_diff_${S}$
 
       ! Interfaces
@@ -105,77 +103,37 @@ contains
 
       !****
 
-      subroutine build_${S}$_(this, st, E_l, E_r, scl)
+      subroutine build_${S}$_(this, st, E_t, scl)
 
          class(match_diff_${S}$), intent(in) :: this
          class(state_${S}$), intent(in)      :: st
-         ${T}$, contiguous, intent(out)      :: E_l(:,:)
-         ${T}$, contiguous, intent(out)      :: E_r(:,:)
+         ${T}$, contiguous, intent(out)      :: E_t(:,:)
          type(ext_${S}$), intent(out)        :: scl
 
-         ! Build the difference equations
+         ${T}$ :: C_l(this%n_e, this%n_e)
+         ${T}$ :: C_r(this%n_e, this%n_e)
 
-         call this%eq(1)%eval_C(st, E_l)
-         call this%eq(2)%eval_C(st, E_r)
+         @:CHECK_BOUNDS(SIZE(E_t, 1), 2*this%n_e)
+         @:CHECK_BOUNDS(SIZE(E_t, 2), this%n_e)
 
-         E_l = -E_l
-
-         scl = ONE_${S}$
-
-         ! Finish
-
-      end subroutine build_${S}$_
-
-      !****
-
-      subroutine build_t_${S}$_(this, st, E_l, E_r, scl)
-
-         class(match_diff_${S}$), intent(in) :: this
-         class(state_${S}$), intent(in)      :: st
-         ${T}$, contiguous, intent(out)      :: E_l(:,:)
-         ${T}$, contiguous, intent(out)      :: E_r(:,:)
-         type(ext_${S}$), intent(out)        :: scl
-
-         ! Build the difference equations (transposed)
-
-         call this%eq(1)%eval_C(st, E_l)
-         call this%eq(2)%eval_C(st, E_r)
-
-         E_l = -TRANSPOSE(E_l)
-         E_r = TRANSPOSE(E_r)
-
-         scl = ONE_${S}$
-
-         ! Finish
-
-      end subroutine build_t_${S}$_
-
-      !****
-      
-      subroutine build_mt_${S}$_(this, st, E, scl)
-
-         class(match_diff_${S}$), intent(in) :: this
-         class(state_${S}$), intent(in)      :: st
-         ${T}$, contiguous, intent(out)      :: E(:,:)
-         type(ext_${S}$), intent(out)        :: scl
-
-         ! Build the difference equations (merged, transposed)
+         ! Build the transposed difference equations
 
          associate (n_e => this%n_e)
 
-            call this%build(st, E(:n_e,:), E(n_e+1:,:), scl)
+            call this%eq(1)%eval_C(st, C_l)
+            call this%eq(2)%eval_C(st, C_r)
 
-            E(:n_e,:) = TRANSPOSE(E(:n_e,:))
-            E(n_e+1:,:) = TRANSPOSE(E(n_e+1:,:))
+            E_t(:n_e,:) = -TRANSPOSE(C_l)
+            E_t(n_e+1:,:) = TRANSPOSE(C_r)
+
+            scl = ONE_${S}$
 
          end associate
 
          ! Finish
 
-         return
+      end subroutine build_${S}$_
 
-      end subroutine build_mt_${S}$_
-      
    #:endfor
 
 end module match_diff_m

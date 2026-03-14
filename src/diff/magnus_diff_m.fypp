@@ -62,8 +62,6 @@ module magnus_diff_m
       contains
          private
          procedure, public :: build => build_${S}$_
-         procedure, public :: build_t => build_t_${S}$_
-         procedure, public :: build_mt => build_mt_${S}$_
       end type magnus_diff_${S}$
 
       ! Interfaces
@@ -155,12 +153,11 @@ contains
 
       !****
 
-      subroutine build_${S}$_(this, st, E_l, E_r, scl)
+      subroutine build_${S}$_(this, st, E_t, scl)
 
          class(magnus_diff_${S}$), intent(in) :: this
          class(state_${S}$), intent(in)       :: st
-         ${T}$, contiguous, intent(out)       :: E_l(:,:)
-         ${T}$, contiguous, intent(out)       :: E_r(:,:)
+         ${T}$, contiguous, intent(out)       :: E_t(:,:)
          type(ext_${S}$), intent(out)         :: scl
 
          logical, parameter :: UPWIND = .TRUE.
@@ -170,16 +167,13 @@ contains
          complex(RD) :: V_l(this%n_e,this%n_e)
          complex(RD) :: V_r(this%n_e,this%n_e)
          integer     :: i
-         complex(RD) :: E_l_(this%n_e,this%n_e)
-         complex(RD) :: E_r_(this%n_e,this%n_e)
+         complex(RD) :: E_l(this%n_e,this%n_e)
+         complex(RD) :: E_r(this%n_e,this%n_e)
 
-         @:CHECK_BOUNDS(SIZE(E_l, 1), this%n_e)
-         @:CHECK_BOUNDS(SIZE(E_l, 2), this%n_e)
+         @:CHECK_BOUNDS(SIZE(E_t, 1), 2*this%n_e)
+         @:CHECK_BOUNDS(SIZE(E_t, 2), this%n_e)
 
-         @:CHECK_BOUNDS(SIZE(E_r, 1), this%n_e)
-         @:CHECK_BOUNDS(SIZE(E_r, 2), this%n_e)
-
-         ! Build the difference equations
+         ! Build the transposed difference equations
 
          ! Evaluate the Magnus slope matrix
 
@@ -197,16 +191,16 @@ contains
 
             do i = 1, this%n_e
                if (REAL(lambda(i)) >= 0._RD) then
-                  E_r_(:,i) = V_r(:,i)*exp(-lambda(i)*this%dx)
-                  E_l_(:,i) = -V_r(:,i)
+                  E_r(:,i) = V_r(:,i)*exp(-lambda(i)*this%dx)
+                  E_l(:,i) = -V_r(:,i)
                else
-                  E_r_(:,i) = V_r(:,i)
-                  E_l_(:,i) = -V_r(:,i)*exp(lambda(i)*this%dx)
+                  E_r(:,i) = V_r(:,i)
+                  E_l(:,i) = -V_r(:,i)*exp(lambda(i)*this%dx)
                endif
             end do
 
-            E_l_ = MATMUL(E_l_, V_l)
-            E_r_ = MATMUL(E_r_, V_l)
+            E_l = MATMUL(E_l, V_l)
+            E_r = MATMUL(E_r, V_l)
 
             scl = exp(ext_${S}$(SUM(lambda, MASK=REAL(lambda) >= 0._RD)*this%dx))
 
@@ -215,73 +209,28 @@ contains
             ! Use the [TowTei2013] expression (their eqns. 4, 16, 18)
 
             do i = 1, this%n_e
-               E_r_(:,i) = 0._RD
-               E_r_(i,i) = 1._RD
-               E_l_(:,i) = -V_r(:,i)*exp(lambda(i)*this%dx)
+               E_r(:,i) = 0._RD
+               E_r(i,i) = 1._RD
+               E_l(:,i) = -V_r(:,i)*exp(lambda(i)*this%dx)
             end do
 
-            E_l_ = MATMUL(E_l_, V_l)
+            E_l = MATMUL(E_l, V_l)
 
             scl = ONE_${S}$
 
          endif
 
-         #:if T == 'real(RD)'
-            E_l = REAL(E_l_)
-            E_r = REAL(E_r_)
-         #:elif T == 'complex(RD)'
-            E_l = E_l_
-            E_r = E_r_
-         #:else
-            #:stop f'invalid type {T}'
-         #:endif
-
-         ! Finish
-
-         return
-
-      end subroutine build_${S}$_
-
-      !****
-
-      subroutine build_t_${S}$_(this, st, E_l, E_r, scl)
-
-         class(magnus_diff_${S}$), intent(in) :: this
-         class(state_${S}$), intent(in)       :: st
-         ${T}$, contiguous, intent(out)       :: E_l(:,:)
-         ${T}$, contiguous, intent(out)       :: E_r(:,:)
-         type(ext_${S}$), intent(out)         :: scl
-
-         ! Build the difference equations (transposed)
-
-         call this%build(st, E_l, E_r, scl)
-
-         E_l = TRANSPOSE(E_l)
-         E_r = TRANSPOSE(E_r)
-
-         ! Finish
-
-         return
-
-      end subroutine build_t_${S}$_
-
-      !****
-      
-      subroutine build_mt_${S}$_(this, st, E, scl)
-
-         class(magnus_diff_${S}$), intent(in) :: this
-         class(state_${S}$), intent(in)       :: st
-         ${T}$, contiguous, intent(out)       :: E(:,:)
-         type(ext_${S}$), intent(out)         :: scl
-
-         ! Build the difference equations (merged, transposed)
-
          associate (n_e => this%n_e)
 
-            call this%build(st, E(:n_e,:), E(n_e+1:,:), scl)
-
-            E(:n_e,:) = TRANSPOSE(E(:n_e,:))
-            E(n_e+1:,:) = TRANSPOSE(E(n_e+1:,:))
+            #:if T == 'real(RD)'
+               E_t(:n_e,:) = TRANSPOSE(REAL(E_l))
+               E_t(n_e+1:,:) = TRANSPOSE(REAL(E_r))
+            #:elif T == 'complex(RD)'
+               E_t(:n_e,:) = TRANSPOSE(E_l)
+               E_t(n_e+1:,:) = TRANSPOSE(E_r)
+            #:else
+               #:stop f'invalid type {T}'
+            #:endif
 
          end associate
 
@@ -289,8 +238,8 @@ contains
 
          return
 
-      end subroutine build_mt_${S}$_
-      
+      end subroutine build_${S}$_
+
       !****
 
       subroutine eval_dOmega_GL2_${S}$_(this, st, dOmega)

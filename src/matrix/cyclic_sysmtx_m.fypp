@@ -163,6 +163,7 @@ contains
             logical  :: full_
             integer  :: l
             integer  :: k
+            ${T}$    :: E_t(2*this%n_e,this%n_e)
             ${T}$    :: G(2*this%n_e,this%n_e)
             ${T}$    :: U(2*this%n_e,this%n_e)
             ${T}$    :: E(2*this%n_e,this%n_e)
@@ -193,7 +194,7 @@ contains
 
             associate (n => this%n, n_e => ${N_E}$, n_i => ${N_I}$, n_o => ${N_O}$)
 
-               !$OMP PARALLEL PRIVATE(l, G, U, E, rscl)
+               !$OMP PARALLEL PRIVATE(l, E_t, G, U, E, rscl)
 
                ! First, build and factorize the sliced matrix
                ! (eqn. 2.4 of Wright 1994, and subsequent steps)
@@ -213,8 +214,18 @@ contains
 
                      if (l == 1) then
 
-                        call de(k)%df%build(st, G(:n_e,:), U(:n_e,:), this%scl(k))
-                        call de(k+l)%df%build(st, U(n_e+1:,:), E(n_e+1:,:), this%scl(k+l))
+!                        call de(k)%df%build(st, G(:n_e,:), U(:n_e,:), this%scl(k))
+!                        call de(k+l)%df%build(st, U(n_e+1:,:), E(n_e+1:,:), this%scl(k+l))
+
+                        call de(k)%df%build(st, E_t, this%scl(k))
+
+                        G(:n_e,:) = TRANSPOSE(E_t(:n_e,:))
+                        U(:n_e,:) = TRANSPOSE(E_t(n_e+1:,:))
+
+                        call de(k+l)%df%build(st, E_t, this%scl(k+l))
+
+                        U(n_e+1:,:) = TRANSPOSE(E_t(:n_e,:))
+                        E(n_e+1:,:) = TRANSPOSE(E_t(n_e+1:,:))
 
                         G(n_e+1:,:) = 0._RD
                         E(:n_e,:) = 0._RD
@@ -348,7 +359,12 @@ contains
                   !$OMP SINGLE
                   if (l == 1 .AND. MOD(n, 2) /= 0) then
 
-                     call de(n)%df%build(st, this%G(:,:,n), this%E(:,:,n), this%scl(n))
+                     !call de(n)%df%build(st, this%G(:,:,n), this%E(:,:,n), this%scl(n))
+
+                     call de(n)%df%build(st, E_t, this%scl(n))
+
+                     this%G(:,:,n) = TRANSPOSE(E_t(:n_e,:))
+                     this%E(:,:,n) = TRANSPOSE(E_t(n_e+1:,:))
 
                      this%rscl(:,n) = 0._RD
 
