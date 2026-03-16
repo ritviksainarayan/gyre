@@ -162,7 +162,7 @@ contains
 
          logical, parameter :: UPWIND = .TRUE.
 
-         ${T}$       :: dOmega(this%n_e,this%n_e)
+         ${T}$       :: dOmega_t(this%n_e,this%n_e)
          complex(RD) :: lambda(this%n_e)
          complex(RD) :: V_l(this%n_e,this%n_e)
          complex(RD) :: V_r(this%n_e,this%n_e)
@@ -177,11 +177,11 @@ contains
 
          ! Evaluate the transposed Magnus slope matrix
 
-         call this%eval_dOmega_t_(st, dOmega)
+         call this%eval_dOmega_t_(st, dOmega_t)
 
          ! Decompose it
 
-         call eigen_decompose(dOmega, lambda, V_l, V_r)
+         call eigen_decompose(dOmega_t, lambda, V_l, V_r)
 
          ! Build the difference equations
 
