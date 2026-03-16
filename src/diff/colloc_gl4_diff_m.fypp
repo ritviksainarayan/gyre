@@ -162,46 +162,55 @@ contains
             subroutine build_${I}$_${S}$_()
 
                ${T}$ :: I(${N_E}$,${N_E}$)
-               ${T}$ :: A_1(${N_E}$,${N_E}$)
-               ${T}$ :: A_2(${N_E}$,${N_E}$)
-               ${T}$ :: A_21(${N_E}$,${N_E}$)
-               ${T}$ :: M_2(${N_E}$,${N_E}$)
-               ${T}$ :: K_1(${N_E}$,${N_E}$)
-               ${T}$ :: K_2(${N_E}$,${N_E}$)
-               ${T}$ :: J(${N_E}$,${N_E}$)
+               ${T}$ :: K_1_t(${N_E}$,${N_E}$)
+               ${T}$ :: K_2_t(${N_E}$,${N_E}$)
+               ${T}$ :: J_t(${N_E}$,${N_E}$)
 
                ! Algorithm note: this is Gauss-Legendre collocation with 2
                ! intermediate points. The implementation follows the
-               ! approach in the StORM code
+               ! approach in the StORM code.
+               !
 
                associate (n_e => ${N_E}$)
 
                   I = identity_matrix(n_e)
 
-                  ! Evaluate the jump matrix
+                  ! The following associate construct reduces the
+                  ! amount of local storage required (but have to be
+                  ! careful not to alias lhs and rhs!)
 
-                  call this%eq(1)%eval_A(st, this%dx, A_1)
-                  call this%eq(2)%eval_A(st, this%dx, A_2)
+                  associate( &
+                     A_1_t => E_t(:n_e,:), &
+                     A_2_t => E_t(n_e+1:,:), &
+                     A_21_t => J_t, &
+                     M_2_t => K_1_t)
 
-                  A_21 = D_21*MATMUL(A_2, A_1)
+                     ! Evaluate the jump matrix
 
-                  M_2 = I - D_12*A_21
-                  K_2 = A_2 - A_21
+                     call this%eq(1)%eval_A_t(st, this%dx, A_1_t)
+                     call this%eq(2)%eval_A_t(st, this%dx, A_2_t)
 
-                  call LA_GESV(M_2, K_2)
+                     A_21_t = D_21*MATMUL(A_1_t, A_2_t)
 
-                  !
+                     M_2_t = I - D_12*A_21_t
+                     K_2_t = A_2_t - A_21_t
 
-                  K_1 = MATMUL(A_1, I-D_12*K_2)
+                     call lin_solve_${I}$_${S}$_(M_2_t, K_2_t)
 
-                  !
+                     !
 
-                  J = B_1*K_1 + B_2*K_2
+                     K_1_t = MATMUL(I-D_12*K_2_t, A_1_t)
 
-                  ! Assemble the difference equations
+                     !
 
-                  E_t(:n_e,:) = TRANSPOSE(J + I)
-                  E_t(n_e+1:,:) = TRANSPOSE(J - I)
+                     J_t = B_1*K_1_t + B_2*K_2_t
+
+                     ! Assemble the difference equations
+
+                     E_t(:n_e,:) = J_t + I
+                     E_t(n_e+1:,:) = J_t - I
+
+                  end associate
 
                end associate
 
@@ -210,6 +219,100 @@ contains
                return
 
             end subroutine build_${I}$_${S}$_
+
+            !****
+
+            subroutine lin_solve_${I}$_${S}$_(A_t, B_t)
+
+               ${T}$, intent(inout) :: A_t(:,:)
+               ${T}$, intent(inout) :: B_t(:,:)
+
+               integer  :: i
+               integer  :: j
+               real(RD) :: piv
+               real(RD) :: piv_tmp
+               integer  :: i_piv
+               ${T}$    :: piv_row_A(${N_E}$)
+               ${T}$    :: piv_row_B(${N_E}$)
+               ${T}$    :: alpha
+               ${T}$    :: beta
+
+               ! Solve the linear system A X = B using Gaussian
+               ! elimination. The arrays A_t and B_t provide the transposes of
+               ! A and B, and on return the transpose of X is stored in B_t
+
+               associate (n_e => ${N_E}$)
+
+                  ! First reduce A to upper triangular form
+
+                  reduce_loop: do j = 1, n_e
+
+                     ! Find the pivot row
+
+                     piv = 0._RD
+                     i_piv = j
+
+                     do i = j, n_e
+                        piv_tmp = abs(A_t(j,i))
+                        if (piv_tmp > piv) then
+                           piv = piv_tmp
+                           i_piv = i
+                        end if
+                     end do
+
+                     @:ASSERT(piv /= 0, 'zero pivot')
+
+                     ! If necessary, swap rows to place the pivot
+                     ! on the diagonal
+
+                     if (i_piv /= j) then
+
+                        piv_row_A = A_t(:,i_piv)
+                        A_t(:,i_piv) = A_t(:,j)
+                        A_t(:,j) = piv_row_A
+
+                        piv_row_B = B_t(:,i_piv)
+                        B_t(:,i_piv) = B_t(:,j)
+                        B_t(:,j) = piv_row_B
+
+                     else
+
+                        piv_row_A = A_t(:,j)
+                        piv_row_B = B_t(:,j)
+
+                     end if
+
+                     ! Eliminate elements below the diagonal
+
+                     alpha = 1._RD/A_t(j,j)
+
+                     do concurrent(i = j+1:n_e) local(beta)
+                        beta = alpha*A_t(j,i)
+                        A_t(:,i) = A_t(:,i) - beta*piv_row_A
+                        B_t(:,i) = B_t(:,i) - beta*piv_row_B
+                     end do
+
+                  end do reduce_loop
+
+                  ! Now perform back-substitution
+
+                  B_t(:,n_e) = B_t(:,n_e)/A_t(n_e,n_e)
+
+                  backsub_loop: do i = n_e-1, 1, -1
+
+                     do j = 1, SIZE(B_t, 1)
+                        B_t(j,i) = (B_t(j,i) - SUM(A_t(i+1:n_e,i)*B_t(j,i+1:n_e)))/A_t(i,i)
+                     end do
+
+                  end do backsub_loop
+
+               end associate
+
+               ! Finish
+
+               return
+
+            end subroutine lin_solve_${I}$_${S}$_
 
          #:endfor
 
