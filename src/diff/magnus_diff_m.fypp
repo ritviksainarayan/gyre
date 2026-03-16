@@ -248,8 +248,8 @@ contains
          class(state_${S}$), intent(in)       :: st
          ${T}$, intent(out)                   :: dOmega_t(:,:)
 
-         @:CHECK_BOUNDS(SIZE(dOmega, 1), this%n_e)
-         @:CHECK_BOUNDS(SIZE(dOmega, 2), this%n_e)
+         @:CHECK_BOUNDS(SIZE(dOmega_t, 1), this%n_e)
+         @:CHECK_BOUNDS(SIZE(dOmega_t, 2), this%n_e)
 
          ! Evaluate the transposed GL2 Magnus slope matrix
 
@@ -272,8 +272,8 @@ contains
          ${T}$ :: A(this%n_e,this%n_e,2)
          ${T}$ :: dalpha(this%n_e,this%n_e,2)
 
-         @:CHECK_BOUNDS(SIZE(dOmega, 1), this%n_e)
-         @:CHECK_BOUNDS(SIZE(dOmega, 2), this%n_e)
+         @:CHECK_BOUNDS(SIZE(dOmega_t, 1), this%n_e)
+         @:CHECK_BOUNDS(SIZE(dOmega_t, 2), this%n_e)
 
          ! Evaluate the transposed GL4 Magnus slope matrix
 
@@ -309,8 +309,8 @@ contains
          ${T}$ :: dalpha(this%n_e,this%n_e,3)
          ${T}$ :: dC(this%n_e,this%n_e,2)
 
-         @:CHECK_BOUNDS(SIZE(dOmega, 1), this%n_e)
-         @:CHECK_BOUNDS(SIZE(dOmega, 2), this%n_e)
+         @:CHECK_BOUNDS(SIZE(dOmega_t, 1), this%n_e)
+         @:CHECK_BOUNDS(SIZE(dOmega_t, 2), this%n_e)
 
          ! Evaluate the transposed GL6 Magnus slope matrix
 
