@@ -67,11 +67,11 @@ if __name__ == '__main__':
 
     for vars, T in zip(('gyre', ), (T_gyre, )):
 
-        with open(f'{vars}/A.inc', 'w') as f:
-            f.write(generate_A(A, T)+'\n')
+        with open(f'{vars}/A_t.inc', 'w') as f:
+            f.write(generate_A(A, T, transpose=True)+'\n')
 
-        with open(f'{vars}/C.inc', 'w') as f:
-            f.write(generate_C(C, T)+'\n')
+        with open(f'{vars}/C_t.inc', 'w') as f:
+            f.write(generate_C(C, T, transpose=True)+'\n')
 
         with open(f'{vars}/Q.inc', 'w') as f:
             f.write(generate(Q.row(0), 'Q')+'\n')

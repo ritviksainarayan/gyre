@@ -110,9 +110,13 @@ class fcode_symbol(sp.Symbol):
     def _fcode(self, printer):
         return self.code
 
+# Define the code printer
+
+printer = spf.FCodePrinter({'standard': 2008, 'source_format': 'free'})
+
 # Code generation routines
 
-def generate_A(A, T, subs=[]):
+def generate_A(A, T, transpose=False, subs=[]):
 
     # Transform the Jacobian matrix
 
@@ -131,11 +135,12 @@ def generate_A(A, T, subs=[]):
 
     # Convert to Fortran
 
-    printer = spf.FCodePrinter({'standard': 2008, 'source_format': 'free'})
+    if transpose:
+        return printer.doprint(del_x*A.T, assign_to='A_t')
+    else:
+        return printer.doprint(del_x*A, assign_to='A')
 
-    return printer.doprint(del_x*A, assign_to='A')
-
-def generate_IB(IB, T, subs=[]):
+def generate_IB(IB, T, transpose=False, subs=[]):
 
     # Transform the inner boundary condition matrix
 
@@ -156,9 +161,12 @@ def generate_IB(IB, T, subs=[]):
 
     # Convert to Fortran
 
-    return spf.fcode(IB, assign_to='B', standard=2008, source_format='free')
+    if transpose:
+        return printer.doprint(IB.T, assign_to='B_t')
+    else:
+        return printer.doprint(IB, assign_to='B')
 
-def generate_OB(OB, T, subs=[]):
+def generate_OB(OB, T, transpose=False, subs=[]):
 
     # Transform the outer boundary condition matrix
 
@@ -172,9 +180,12 @@ def generate_OB(OB, T, subs=[]):
 
     # Convert to Fortran
 
-    return spf.fcode(OB, assign_to='B', standard=2008, source_format='free')
+    if transpose:
+        return printer.doprint(OB.T, assign_to='B_t')
+    else:
+        return printer.doprint(OB, assign_to='B')
 
-def generate_C(C, T, subs=[]):
+def generate_C(C, T, transpose=False, subs=[]):
 
     # Transform the match condition matrix
 
@@ -188,9 +199,12 @@ def generate_C(C, T, subs=[]):
 
     # Convert to Fortran
 
-    return spf.fcode(C, assign_to='C', standard=2008, source_format='free')
+    if transpose:
+        return printer.doprint(C.T, assign_to='C_t')
+    else:
+        return printer.doprint(C, assign_to='C')
 
-def generate_R(T, subs=[]):
+def generate_R(T, transpose=False, subs=[]):
 
     # Invert the transformation matrix
 
@@ -204,7 +218,10 @@ def generate_R(T, subs=[]):
 
     # Convert to Fortran
 
-    return spf.fcode(R, assign_to='R', standard=2008, source_format='free')
+    if transpose:
+        return printer.doprint(R.T, assign_to='R_t')
+    else:
+        return printer.doprint(R, assign_to='R')
 
 def generate(expr, assign_to=None, subs=[]):
 
@@ -216,4 +233,4 @@ def generate(expr, assign_to=None, subs=[]):
 
     # Convert a generic expression to Fortran
 
-    return spf.fcode(expr, assign_to=assign_to, standard=2008, source_format='free')
+    return printer.doprint(expr, assign_to=assign_to)

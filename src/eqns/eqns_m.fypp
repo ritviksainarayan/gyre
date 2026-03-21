@@ -30,9 +30,10 @@ module eqns_m
       type, abstract :: eqns_${S}$
          integer :: n_e
       contains
-         procedure(eval_A_${S}$_), deferred  :: eval_A
-         procedure(eval_A_${S}$_), deferred  :: eval_A_t
-         procedure(eval_C_${S}$_), deferred  :: eval_C
+         procedure(eval_A_${S}$_), deferred   :: eval_A
+         procedure(eval_A_t_${S}$_), deferred :: eval_A_t
+         procedure(eval_C_${S}$_), deferred   :: eval_C
+         procedure(eval_C_t_${S}$_), deferred :: eval_C_t
       end type eqns_${S}$
 
       ! Interfaces
@@ -50,6 +51,17 @@ module eqns_m
             ${T}$, intent(out)             :: A(:,:)
          end subroutine eval_A_${S}$_
 
+         subroutine eval_A_t_${S}$_(this, st, del, A_t)
+            use forum_m, only: RD
+            use state_m
+            import eqns_${S}$
+            implicit none (type, external)
+            class(eqns_${S}$), intent(in)  :: this
+            class(state_${S}$), intent(in) :: st
+            real(RD), intent(in)           :: del
+            ${T}$, intent(out)             :: A_t(:,:)
+         end subroutine eval_A_t_${S}$_
+
          subroutine eval_C_${S}$_(this, st, C)
             use forum_m, only: RD
             use state_m
@@ -60,6 +72,15 @@ module eqns_m
             ${T}$, intent(out)             :: C(:,:)
          end subroutine eval_C_${S}$_
 
+         subroutine eval_C_t_${S}$_(this, st, C_t)
+            use forum_m, only: RD
+            use state_m
+            import eqns_${S}$
+            implicit none (type, external)
+            class(eqns_${S}$), intent(in)  :: this
+            class(state_${S}$), intent(in) :: st
+            ${T}$, intent(out)             :: C_t(:,:)
+         end subroutine eval_C_t_${S}$_
       end interface
 
       ! Access specifiers

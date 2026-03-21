@@ -61,8 +61,8 @@ if __name__ == '__main__':
 
     for vars, T in zip(('gyre', ), (T_gyre, )):
 
-        with open(f'{vars}/A.inc', 'w') as f:
-            f.write(generate_A(A, T)+'\n')
+        with open(f'{vars}/A_t.inc', 'w') as f:
+            f.write(generate_A(A, T, transpose=True)+'\n')
 
         with open(f'{vars}/IB_regular.inc', 'w') as f:
             f.write(generate_IB(IB_regular, T)+'\n')
@@ -70,8 +70,8 @@ if __name__ == '__main__':
         with open(f'{vars}/OB_vacuum.inc', 'w') as f:
             f.write(generate_OB(OB_vacuum, T)+'\n')
 
-        with open(f'{vars}/C.inc', 'w') as f:
-            f.write(generate_C(C, T)+'\n')
+        with open(f'{vars}/C_t.inc', 'w') as f:
+            f.write(generate_C(C, T, transpose=True)+'\n')
 
         with open(f'{vars}/R.inc', 'w') as f:
             f.write(generate_R(T)+'\n')
