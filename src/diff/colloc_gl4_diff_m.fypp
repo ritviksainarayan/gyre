@@ -161,56 +161,47 @@ contains
 
             subroutine build_${I}$_${S}$_()
 
-               ${T}$ :: I(${N_E}$,${N_E}$)
-               ${T}$ :: K_1_t(${N_E}$,${N_E}$)
-               ${T}$ :: K_2_t(${N_E}$,${N_E}$)
-               ${T}$ :: J_t(${N_E}$,${N_E}$)
+               ${T}$ :: R_1(${N_E}$,${N_E}$)
+               ${T}$ :: R_2(${N_E}$,${N_E}$)
+               ${T}$ :: R_3(${N_E}$,${N_E}$)
 
-               ! Algorithm note: this is Gauss-Legendre collocation with 2
-               ! intermediate points. The implementation follows the
-               ! approach in the StORM code.
-               !
+               integer :: j
+
+               ! Algorithm note: this is Gauss-Legendre collocation
+               ! with 2 intermediate stages. The implementation
+               ! follows the general approach in the StORM code, but
+               ! using a set of matrix registers (R_1...R_3) to reduce
+               ! local storage
 
                associate (n_e => ${N_E}$)
 
-                  I = identity_matrix(n_e)
+                  call this%eq(1)%eval_A_t(st, this%dx, R_1)
+                  call this%eq(2)%eval_A_t(st, this%dx, R_2)
 
-                  ! The following associate construct reduces the
-                  ! amount of local storage required (but have to be
-                  ! careful not to alias lhs and rhs!)
+                  R_3 = MATMUL(R_1, R_2)
 
-                  associate( &
-                     A_1_t => E_t(:n_e,:), &
-                     A_2_t => E_t(n_e+1:,:), &
-                     A_21_t => J_t, &
-                     M_2_t => K_1_t)
+                  R_2 = R_2 - D_21*R_3
 
-                     ! Evaluate the jump matrix
+                  R_3 = -D_12*D_21*R_3
+                  do concurrent(j = 1:n_e)
+                     R_3(j,j) = R_3(j,j) + 1._RD
+                  end do
 
-                     call this%eq(1)%eval_A_t(st, this%dx, A_1_t)
-                     call this%eq(2)%eval_A_t(st, this%dx, A_2_t)
+                  call lin_solve_${I}$_${S}$_(R_3, R_2)
 
-                     A_21_t = D_21*MATMUL(A_1_t, A_2_t)
+                  R_3 = MATMUL(R_2, R_1)
 
-                     M_2_t = I - D_12*A_21_t
-                     K_2_t = A_2_t - A_21_t
+                  R_1 = b_1*R_1 - B_1*D_12*R_3 + B_2*R_2
 
-                     call lin_solve_${I}$_${S}$_(M_2_t, K_2_t)
+                  ! Assemble the difference equations
 
-                     !
+                  E_t(:n_e,:) = R_1
+                  E_t(n_e+1:,:) = R_1
 
-                     K_1_t = MATMUL(I-D_12*K_2_t, A_1_t)
-
-                     !
-
-                     J_t = B_1*K_1_t + B_2*K_2_t
-
-                     ! Assemble the difference equations
-
-                     E_t(:n_e,:) = J_t + I
-                     E_t(n_e+1:,:) = J_t - I
-
-                  end associate
+                  do concurrent(j = 1:n_e)
+                     E_t(j,j) = E_t(j,j) + 1._RD
+                     E_t(n_e+j,j) = E_t(n_e+j,j) - 1._RD
+                  end do
 
                end associate
 
