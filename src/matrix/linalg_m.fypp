@@ -392,16 +392,6 @@ contains
          ${T}$, intent(inout) :: A_t(:,:)
          ${T}$, intent(inout) :: B_t(:,:)
 
-         integer  :: i
-         integer  :: j
-         real(RD) :: piv
-         real(RD) :: piv_tmp
-         integer  :: i_piv
-         ${T}$    :: piv_row_A(SIZE(A_t, 1))
-         ${T}$    :: piv_row_B(SIZE(B_t, 1))
-         ${T}$    :: alpha
-         ${T}$    :: beta
-
          @:CHECK_BOUNDS(SIZE(A_t, 1), SIZE(A_t, 2))
          @:CHECK_BOUNDS(SIZE(B_t, 2), SIZE(A_t, 2))
 
@@ -410,76 +400,115 @@ contains
          ! of A and B, and on return the transpose of X is stored in
          ! B_t
 
-         associate (n => SIZE(A_t, 2))
-
-            ! First reduce A to upper triangular form
-
-            reduce_loop: do j = 1, n
-
-               ! Find the pivot row
-
-               piv = 0._RD
-               i_piv = j
-
-               do i = j, n
-                  piv_tmp = abs(A_t(j,i))
-                  if (piv_tmp > piv) then
-                     piv = piv_tmp
-                     i_piv = i
-                  end if
-               end do
-
-               @:ASSERT(piv /= 0, 'zero pivot')
-
-               ! If necessary, swap rows to place the pivot
-               ! on the diagonal
-
-               if (i_piv /= j) then
-
-                  piv_row_A = A_t(:,i_piv)
-                  A_t(:,i_piv) = A_t(:,j)
-                  A_t(:,j) = piv_row_A
-
-                  piv_row_B = B_t(:,i_piv)
-                  B_t(:,i_piv) = B_t(:,j)
-                  B_t(:,j) = piv_row_B
-
-               else
-
-                  piv_row_A = A_t(:,j)
-                  piv_row_B = B_t(:,j)
-
-               end if
-
-               ! Eliminate elements below the diagonal
-
-               alpha = 1._RD/A_t(j,j)
-
-               do concurrent(i = j+1:n) local(beta)
-                  beta = alpha*A_t(j,i)
-                  A_t(:,i) = A_t(:,i) - beta*piv_row_A
-                  B_t(:,i) = B_t(:,i) - beta*piv_row_B
-               end do
-
-            end do reduce_loop
-
-            ! Now perform back-substitution
-
-            B_t(:,n) = B_t(:,n)/A_t(n,n)
-
-            backsub_loop: do i = n-1, 1, -1
-
-               do j = 1, SIZE(B_t, 1)
-                  B_t(j,i) = (B_t(j,i) - SUM(A_t(i+1:n,i)*B_t(j,i+1:n)))/A_t(i,i)
-               end do
-
-            end do backsub_loop
-
-         end associate
+         select case(SIZE(A_t, 1))
+         case(2)
+            call trans_solve_2_${S}$_()
+         case(4)
+            call trans_solve_4_${S}$_()
+         case(6)
+            call trans_solve_6_${S}$_()
+         case default
+            call trans_solve_gen_${S}$_()
+         end select
 
          ! Finish
 
          return
+
+      contains
+
+         #:for I, N in [ &
+            ['2', 2], &
+            ['4', 4], &
+            ['6', 6], &
+            ['gen', 'SIZE(A_t, 1)']]
+
+            subroutine trans_solve_${I}$_${S}$_()
+
+               integer  :: i
+               integer  :: j
+               real(RD) :: piv
+               real(RD) :: piv_tmp
+               integer  :: i_piv
+               ${T}$    :: piv_row_A(${N}$)
+               ${T}$    :: piv_row_B(SIZE(B_t, 1))
+               ${T}$    :: alpha
+               ${T}$    :: beta
+
+               associate (n => ${N}$)
+
+                  ! First reduce A to upper triangular form
+
+                  reduce_loop: do j = 1, n
+
+                     ! Find the pivot row
+
+                     piv = 0._RD
+                     i_piv = j
+
+                     do i = j, n
+                        piv_tmp = abs(A_t(j,i))
+                        if (piv_tmp > piv) then
+                           piv = piv_tmp
+                           i_piv = i
+                        end if
+                     end do
+
+                     @:ASSERT(piv /= 0, 'zero pivot')
+
+                     ! If necessary, swap rows to place the pivot
+                     ! on the diagonal
+
+                     if (i_piv /= j) then
+
+                        piv_row_A = A_t(:,i_piv)
+                        A_t(:,i_piv) = A_t(:,j)
+                        A_t(:,j) = piv_row_A
+
+                        piv_row_B = B_t(:,i_piv)
+                        B_t(:,i_piv) = B_t(:,j)
+                        B_t(:,j) = piv_row_B
+
+                     else
+
+                        piv_row_A = A_t(:,j)
+                        piv_row_B = B_t(:,j)
+
+                     end if
+
+                     ! Eliminate elements below the diagonal
+
+                     alpha = 1._RD/A_t(j,j)
+
+                     do concurrent(i = j+1:n) local(beta)
+                        beta = alpha*A_t(j,i)
+                        A_t(:,i) = A_t(:,i) - beta*piv_row_A
+                        B_t(:,i) = B_t(:,i) - beta*piv_row_B
+                     end do
+
+                  end do reduce_loop
+
+                  ! Now perform back-substitution
+
+                  B_t(:,n) = B_t(:,n)/A_t(n,n)
+
+                  backsub_loop: do i = n-1, 1, -1
+
+                     do j = 1, SIZE(B_t, 1)
+                        B_t(j,i) = (B_t(j,i) - SUM(A_t(i+1:n,i)*B_t(j,i+1:n)))/A_t(i,i)
+                     end do
+
+                  end do backsub_loop
+
+               end associate
+
+               ! Finish
+
+               return
+
+            end subroutine trans_solve_${I}$_${S}$_
+
+         #:endfor
 
       end subroutine trans_solve_${S}$_
 
