@@ -187,7 +187,8 @@ contains
                      R_3(j,j) = R_3(j,j) + 1._RD
                   end do
 
-                  call lin_solve_${I}$_${S}$_(R_3, R_2)
+                  !call lin_solve_${I}$_${S}$_(R_3, R_2)
+                  call trans_solve(R_3, R_2)
 
                   R_3 = MATMUL(R_2, R_1)
 
