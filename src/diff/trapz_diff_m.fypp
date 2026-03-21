@@ -26,7 +26,6 @@ module trapz_diff_m
    use diff_m
    use eqns_m
    use ext_m
-   use linalg_m
    use point_m
    use state_m
 
@@ -129,7 +128,7 @@ contains
          ${T}$, contiguous, intent(out)      :: E_t(:,:)
          type(ext_${S}$), intent(out)        :: scl
 
-         ${T}$ :: A(this%n_e,this%n_e,2)
+         integer :: j
 
          @:CHECK_BOUNDS(SIZE(E_t, 1), 2*this%n_e)
          @:CHECK_BOUNDS(SIZE(E_t, 2), this%n_e)
@@ -142,26 +141,26 @@ contains
 
                ! If we're at the origin, fudge things to avoid evaluating A there
 
-               E_t(:n_e,:) = -identity_matrix(this%n_e)
-               E_t(n_e+1:,:) = identity_matrix(this%n_e)
-
-               scl = ONE_${S}$
+               E_t = 0._RD
 
             else
 
-               ! Evaluate the RHS matrix
+               call this%eq(1)%eval_A_t(st, this%dx, E_t(:n_e,:))
+               call this%eq(2)%eval_A_t(st, this%dx, E_t(n_e+1:,:))
 
-               call this%eq(1)%eval_A_t(st, this%dx, A(:,:,1))
-               call this%eq(2)%eval_A_t(st, this%dx, A(:,:,2))
-
-               ! Build the difference equations
-
-               E_t(:n_e,:) = -identity_matrix(this%n_e) - MATMUL(A(:,:,1), diagonal_matrix(1._RD-this%w))
-               E_t(n_e+1:,:) =  identity_matrix(this%n_e) - MATMUL(A(:,:,2), diagonal_matrix(this%w))
-
-               scl = ONE_${S}$
+               do concurrent(j = 1:n_e)
+                  E_t(:n_e,j) = E_t(:n_e,j)*(1._RD - this%w(j))
+                  E_t(n_e+1:,j) = E_t(n_e+1:,j)*this%w(j)
+               end do
 
             end if
+
+            do concurrent(j = 1:n_e)
+               E_t(j,j) = E_t(j,j) + 1._RD
+               E_t(n_e+j,j) = E_t(n_e+j,j) - 1._RD
+            end do
+
+            scl = ONE_${S}$
 
          end associate
 
