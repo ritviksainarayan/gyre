@@ -110,9 +110,6 @@ contains
          ${T}$, contiguous, intent(out)      :: E_t(:,:)
          type(ext_${S}$), intent(out)        :: scl
 
-         ${T}$ :: C_l(this%n_e, this%n_e)
-         ${T}$ :: C_r(this%n_e, this%n_e)
-
          @:CHECK_BOUNDS(SIZE(E_t, 1), 2*this%n_e)
          @:CHECK_BOUNDS(SIZE(E_t, 2), this%n_e)
 
@@ -120,11 +117,10 @@ contains
 
          associate (n_e => this%n_e)
 
-            call this%eq(1)%eval_C(st, C_l)
-            call this%eq(2)%eval_C(st, C_r)
+            call this%eq(1)%eval_C_t(st, E_t(:n_e,:))
+            call this%eq(2)%eval_C_t(st, E_t(n_e+1:,:))
 
-            E_t(:n_e,:) = -TRANSPOSE(C_l)
-            E_t(n_e+1:,:) = TRANSPOSE(C_r)
+            E_t(n_e+1:,:) = -E_t(n_e+1:,:)
 
             scl = ONE_${S}$
 
