@@ -23,9 +23,10 @@ module diff_factory_m
 
    use forum_m, only: RD
 
-   use colloc_gl2_diff_m
-   use colloc_gl4_diff_m
-   use colloc_gl6_diff_m
+!   use colloc_gl2_diff_m
+!   use colloc_gl4_diff_m
+   !   use colloc_gl6_diff_m
+   use colloc_diff_m
    use diff_m
    use eqns_m
    use magnus_diff_m
@@ -93,11 +94,11 @@ contains
             case ('MAGNUS_GL6')
                df = magnus_diff_${S}$(eqns_factory, pt_a, pt_b, 'GL6')
             case ('COLLOC_GL2')
-               df = colloc_gl2_diff_${S}$(eqns_factory, pt_a, pt_b)
+               df = colloc_diff_${S}$(eqns_factory, pt_a, pt_b, 'GL2')
             case ('COLLOC_GL4')
-               df = colloc_gl4_diff_${S}$(eqns_factory, pt_a, pt_b)
+               df = colloc_diff_${S}$(eqns_factory, pt_a, pt_b, 'GL4')
             case ('COLLOC_GL6')
-               df = colloc_gl6_diff_${S}$(eqns_factory, pt_a, pt_b)
+               df = colloc_diff_${S}$(eqns_factory, pt_a, pt_b, 'GL6')
             case ('TRAPZ')
                df = trapz_diff_${S}$(eqns_factory, pt_a, pt_b)
             case ('MIRK')
