@@ -44,15 +44,15 @@ module colloc_diff_m
 
       type, extends(diff_${S}$) :: colloc_diff_${S}$
          private
-         class(eqns_${S}$), allocatable :: eq(:)
-         real(RD)                       :: dx
-         integer                        :: order
-      contains
+         class(eqns_${S}$), allocatable       :: eq(:)
+         real(RD)                             :: dx
+         procedure(build_GL2_${S}$_), pointer :: build_
+     contains
          private
          procedure, public :: build => build_${S}$_
-         procedure         :: build_GL2_${S}$_
-         procedure         :: build_GL4_${S}$_
-         procedure         :: build_GL6_${S}$_
+!         procedure         :: build_GL2_${S}$_
+!         procedure         :: build_GL4_${S}$_
+!         procedure         :: build_GL6_${S}$_
       end type colloc_diff_${S}$
 
       ! Interfaces
@@ -109,13 +109,13 @@ contains
 
          select case (scheme)
          case ('GL2')
-            df%order = 2
+            df%build_ => build_GL2_${S}$_
             c_i = GL2_C_I
          case ('GL4')
-            df%order = 4
+            df%build_ => build_GL4_${S}$_
             c_i = GL4_C_I
          case ('GL6')
-            df%order = 6
+            df%build_ => build_GL6_${S}$_
             c_i = GL6_C_I
          case default
             @:ABORT('invalid scheme')
@@ -153,16 +153,18 @@ contains
 
          ! Build the transposed difference equations
 
-         select case(this%order)
-         case(2)
-            call this%build_GL2_${S}$_(st, E_t, scl)
-         case(4)
-            call this%build_GL4_${S}$_(st, E_t, scl)
-         case(6)
-            call this%build_GL6_${S}$_(st, E_t, scl)
-         case default
-            @:ABORT('invalid order')
-         end select
+         call this%build_(st, E_t, scl)
+
+!         select case(this%order)
+!         case(2)
+!            call this%build_GL2_${S}$_(st, E_t, scl)
+!         case(4)
+!            call this%build_GL4_${S}$_(st, E_t, scl)
+!         case(6)
+!            call this%build_GL6_${S}$_(st, E_t, scl)
+!         case default
+!            @:ABORT('invalid order')
+!         end select
 
          ! Finish
 
