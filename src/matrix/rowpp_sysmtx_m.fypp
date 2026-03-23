@@ -281,7 +281,7 @@ contains
 
                      ! Eliminate elements below the diagonal
 
-                     alpha = 1._RD/M_t(j,j)
+                     alpha = 1._RD/piv_row(j)
 
                      do concurrent(i = j+1:n_i+n_e) local(beta)
                         beta = alpha*M_t(j,i)
@@ -290,7 +290,7 @@ contains
 
                      ! Update the diagonal product
 
-                     this%D(k) = this%D(k)*M_t(j,j)
+                     this%D(k) = this%D(k)*piv_row(j)
 
                   end do reduce_loop
 
