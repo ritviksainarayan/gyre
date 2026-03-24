@@ -21,7 +21,7 @@ module linalg_m
 
    ! Uses
 
-   use forum_m, only: RD, sort_indices
+   use forum_m, only: RD
 
    use blas_lapack_m
    use math_m
@@ -37,8 +37,14 @@ module linalg_m
       ! Interfaces
 
       interface eigen_decompose
-         module procedure eigen_decompose_${S}$_
+         module procedure eigen_decompose_gen_${S}$_
       end interface eigen_decompose
+
+      #:for N in [2, 4, 6]
+         interface eigen_decompose_${N}$
+            module procedure eigen_decompose_${N}$_${S}$_
+         end interface eigen_decompose_${N}$
+      #:endfor
 
       interface sing_decompose
          module procedure sing_decompose_${S}$_
@@ -48,17 +54,11 @@ module linalg_m
          module procedure trans_solve_gen_${S}$_
       end interface trans_solve
 
-      interface trans_solve_2
-         module procedure trans_solve_2_${S}$_
-      end interface trans_solve_2
-
-      interface trans_solve_4
-         module procedure trans_solve_4_${S}$_
-      end interface trans_solve_4
-
-      interface trans_solve_6
-         module procedure trans_solve_6_${S}$_
-      end interface trans_solve_6
+      #:for N in [2, 4, 6]
+         interface trans_solve_${N}$
+            module procedure trans_solve_${N}$_${S}$_
+         end interface trans_solve_${N}$
+      #:endfor
 
       interface commutator
          module procedure commutator_${S}$_
@@ -77,6 +77,9 @@ module linalg_m
    ! Access specifiers
 
    public :: eigen_decompose
+   public :: eigen_decompose_2
+   public :: eigen_decompose_4
+   public :: eigen_decompose_6
    public :: sing_decompose
    public :: trans_solve
    public :: trans_solve_2
@@ -92,225 +95,6 @@ module linalg_m
    private
 
 contains
-
-   subroutine eigen_decompose_r_(A, lambda, V_l, V_r, sort)
-
-      real(RD), intent(inout)       :: A(:,:)
-      complex(RD), intent(out)      :: lambda(:)
-      complex(RD), intent(out)      :: V_l(:,:)
-      complex(RD), intent(out)      :: V_r(:,:)
-      logical, optional, intent(in) :: sort
-
-      logical     :: sort_
-      integer     :: n
-      real(RD)    :: lambda_re(SIZE(lambda))
-      real(RD)    :: lambda_im(SIZE(lambda))
-      real(RD)    :: V_l_r(SIZE(A, 1),SIZE(A, 2))
-      real(RD)    :: V_r_r(SIZE(A, 1),SIZE(A, 2))
-      real(RD)    :: work(4*SIZE(A, 1))
-      integer     :: info
-      integer     :: i
-      complex(RD) :: norm
-      integer     :: ind(SIZE(A, 1))
-
-      @:CHECK_BOUNDS(SIZE(A, 1), SIZE(A, 2))
-      @:CHECK_BOUNDS(SIZE(lambda), SIZE(A, 1))
-
-      @:CHECK_BOUNDS(SIZE(V_l, 1), SIZE(A, 1))
-      @:CHECK_BOUNDS(SIZE(V_l, 2), SIZE(A, 2))
-
-      @:CHECK_BOUNDS(SIZE(V_r, 1), SIZE(A, 1))
-      @:CHECK_BOUNDS(SIZE(V_r, 2), SIZE(A, 2))
-
-      if(PRESENT(sort)) then
-         sort_ = sort
-      else
-         sort_ = .FALSE.
-      end if
-
-      ! Perform the eigendecomposition of A
-
-      n = SIZE(A, 1)
-
-      if(n == 2) then
-
-         ! Special case: n == 2
-
-         call eigen_decompose_2_r_(A, lambda, V_l, V_r)
-
-      else
-
-         call XGEEV('V', 'V', n, A, n, lambda_re, lambda_im, &
-            V_l_r, n, V_r_r, n, work, SIZE(work), info)
-         @:ASSERT(info == 0, 'non-zero return from XGEEV')
-
-         lambda = CMPLX(lambda_re, lambda_im, RD)
-
-         call reconstruct_eigenvector_(lambda_re, lambda_im, V_l_r, V_l)
-         call reconstruct_eigenvector_(lambda_re, lambda_im, V_r_r, V_r)
-
-         V_l = CONJG(TRANSPOSE(V_l))
-
-         ! Renormalize the left eigenvectors so they are orthonormal to
-         ! the right eigenvectors
-
-         do i = 1, n
-            norm = SUM(V_l(i,:)*V_r(:,i))
-            !@:ASSERT(abs(norm) > n*EPSILON(0._RD), 'near-defective matrix')
-            V_l(i,:) = V_l(i,:)/norm
-         enddo
-
-      endif
-
-      ! (Possibly) sort
-
-      if(sort_) then
-
-         ind = sort_indices(lambda_re)
-
-         lambda = lambda(ind)
-
-         V_l = V_l(ind,:)
-         V_r = V_r(:,ind)
-
-      endif
-
-      ! Finish
-
-      return
-
-   contains
-
-      subroutine reconstruct_eigenvector_(lambda_re, lambda_im, V_r, V)
-
-         real(RD), intent(in)     :: lambda_re(:)
-         real(RD), intent(in)     :: lambda_im(:)
-         real(RD), intent(in)     :: V_r(:,:)
-         complex(RD), intent(out) :: V(:,:)
-
-         integer :: i
-
-         ! Reconstruct the complex eigenvector
-
-         i = 1
-
-         recon_loop : do
-
-            if(lambda_im(i) == 0._RD) then
-
-               V(:,i) = V_r(:,i)
-
-               i = i + 1
-
-            elseif(lambda_re(i) == lambda_re(i+1) .AND. &
-               &   lambda_im(i) == -lambda_im(i+1)) then
-
-               V(:,i) = CMPLX(V_r(:,i), V_r(:,i+1), KIND=RD)
-               V(:,i+1) = CONJG(V(:,i))
-
-               i = i + 2
-
-            else
-
-               @:ABORT('Complex eigenvalue does not have conjugate pair')
-
-            endif
-
-            if(i > SIZE(V_r, 2)) exit recon_loop
-
-         end do recon_loop
-
-         ! Finish
-
-         return
-
-      end subroutine reconstruct_eigenvector_
-
-   end subroutine eigen_decompose_r_
-
-   !****
-
-   subroutine eigen_decompose_c_(A, lambda, V_l, V_r, sort)
-
-      complex(RD), intent(inout)    :: A(:,:)
-      complex(RD), intent(out)      :: lambda(:)
-      complex(RD), intent(out)      :: V_l(:,:)
-      complex(RD), intent(out)      :: V_r(:,:)
-      logical, optional, intent(in) :: sort
-
-      logical     :: sort_
-      integer     :: n
-      complex(RD) :: work(2*SIZE(A, 1))
-      real(RD)    :: rwork(2*SIZE(A, 1))
-      integer     :: info
-      integer     :: i
-      complex(RD) :: norm
-      integer     :: ind(SIZE(A, 1))
-
-      @:CHECK_BOUNDS(SIZE(A, 1), SIZE(A, 2))
-      @:CHECK_BOUNDS(SIZE(lambda), SIZE(A, 1))
-
-      @:CHECK_BOUNDS(SIZE(V_l, 1), SIZE(A, 1))
-      @:CHECK_BOUNDS(SIZE(V_l, 2), SIZE(A, 2))
-
-      @:CHECK_BOUNDS(SIZE(V_r, 1), SIZE(A, 1))
-      @:CHECK_BOUNDS(SIZE(V_r, 2), SIZE(A, 2))
-
-      if(PRESENT(sort)) then
-         sort_ = sort
-      else
-         sort_ = .FALSE.
-      end if
-
-      ! Perform the eigendecomposition of A
-
-      n = SIZE(A, 1)
-
-      if(n == 2) then
-
-         ! Special case: n == 2
-
-         call eigen_decompose_2_c_(A, lambda, V_l, V_r)
-
-      else
-
-         call XGEEV('V', 'V', n, A, n, lambda, &
-            V_l, n, V_r, n, work, SIZE(work, 1), rwork, info)
-         @:ASSERT(info == 0, 'non-zero return from XGEEV')
-
-         V_l = CONJG(TRANSPOSE(V_l))
-
-         ! Renormalize the left eigenvectors so they are orthonormal to
-         ! the right eigenvectors
-
-         do i = 1,n
-            norm = SUM(V_l(i,:)*V_r(:,i))
-            !@:ASSERT(abs(norm) > n*EPSILON(0._RD), 'near-defective matrix')
-            V_l(i,:) = V_l(i,:)/norm
-         enddo
-
-      end if
-
-      ! (Possibly) sort
-
-      if(sort_) then
-
-         ind = sort_indices(REAL(lambda))
-
-         lambda = lambda(ind)
-
-         V_l = V_l(ind,:)
-         V_r = V_r(:,ind)
-
-      endif
-
-      ! Finish
-
-      return
-
-   end subroutine eigen_decompose_c_
-
-   !****
 
    #:for T, S in zip(FLOAT_TYPES, FLOAT_SUFFIXES)
 
@@ -332,16 +116,16 @@ contains
          @:CHECK_BOUNDS(SIZE(A, 1), 2)
          @:CHECK_BOUNDS(SIZE(A, 2), 2)
 
-         @:CHECK_BOUNDS(SIZE(lambda), SIZE(A, 1))
+         @:CHECK_BOUNDS(SIZE(lambda), 2)
 
          if(PRESENT(V_l)) then
-            @:CHECK_BOUNDS(SIZE(V_l, 1), SIZE(A, 1))
-            @:CHECK_BOUNDS(SIZE(V_l, 2), SIZE(A, 2))
+            @:CHECK_BOUNDS(SIZE(V_l, 1), 2)
+            @:CHECK_BOUNDS(SIZE(V_l, 2), 2)
          endif
 
          if(PRESENT(V_r)) then
-            @:CHECK_BOUNDS(SIZE(V_r, 1), SIZE(A, 1))
-            @:CHECK_BOUNDS(SIZE(V_r, 2), SIZE(A, 2))
+            @:CHECK_BOUNDS(SIZE(V_r, 1), 2)
+            @:CHECK_BOUNDS(SIZE(V_r, 2), 2)
          endif
 
          ! Perform the eigendecomposition of the 2x2 matrix A
@@ -400,7 +184,167 @@ contains
 
       end subroutine eigen_decompose_2_${S}$_
 
+   #:endfor
+
+   !****
+
+   #:for I, N in [ &
+      ['4', 4], &
+      ['6', 6], &
+      ['gen', 'SIZE(A, 1)']]
+
+      subroutine eigen_decompose_${I}$_r_(A, lambda, V_l, V_r)
+
+         real(RD), intent(inout)  :: A(:,:)
+         complex(RD), intent(out) :: lambda(:)
+         complex(RD), intent(out) :: V_l(:,:)
+         complex(RD), intent(out) :: V_r(:,:)
+
+         real(RD)    :: lambda_re(${N}$)
+         real(RD)    :: lambda_im(${N}$)
+         real(RD)    :: V_l_r(${N}$,${N}$)
+         real(RD)    :: V_r_r(${N}$,${N}$)
+         real(RD)    :: work(4*${N}$)
+         integer     :: info
+         integer     :: i
+         complex(RD) :: norm
+
+         @:CHECK_BOUNDS(SIZE(A, 1), ${N}$)
+         @:CHECK_BOUNDS(SIZE(A, 2), ${N}$)
+
+         @:CHECK_BOUNDS(SIZE(lambda), ${N}$)
+
+         @:CHECK_BOUNDS(SIZE(V_l, 1), ${N}$)
+         @:CHECK_BOUNDS(SIZE(V_l, 2), ${N}$)
+
+         @:CHECK_BOUNDS(SIZE(V_r, 1), ${N}$)
+         @:CHECK_BOUNDS(SIZE(V_r, 2), ${N}$)
+
+         ! Perform the eigendecomposition of A
+
+         call XGEEV('V', 'V', ${N}$, A, ${N}$, lambda_re, lambda_im, &
+            V_l_r, ${N}$, V_r_r, ${N}$, work, SIZE(work), info)
+         @:ASSERT(info == 0, 'non-zero return from XGEEV')
+
+         lambda = CMPLX(lambda_re, lambda_im, RD)
+
+         call reconstruct_eigenvector_(lambda_re, lambda_im, V_l_r, V_l)
+         call reconstruct_eigenvector_(lambda_re, lambda_im, V_r_r, V_r)
+
+         V_l = CONJG(TRANSPOSE(V_l))
+
+         ! Renormalize the left eigenvectors so they are orthonormal to
+         ! the right eigenvectors
+
+         do i = 1, ${N}$
+            norm = SUM(V_l(i,:)*V_r(:,i))
+            V_l(i,:) = V_l(i,:)/norm
+         enddo
+
+         ! Finish
+
+         return
+
+      contains
+
+         subroutine reconstruct_eigenvector_(lambda_re, lambda_im, V_r, V)
+
+            real(RD), intent(in)     :: lambda_re(:)
+            real(RD), intent(in)     :: lambda_im(:)
+            real(RD), intent(in)     :: V_r(:,:)
+            complex(RD), intent(out) :: V(:,:)
+
+            integer :: i
+
+            ! Reconstruct the complex eigenvector
+
+            i = 1
+
+            recon_loop : do
+
+               if(lambda_im(i) == 0._RD) then
+
+                  V(:,i) = V_r(:,i)
+
+                  i = i + 1
+
+               elseif(lambda_re(i) == lambda_re(i+1) .AND. &
+                      lambda_im(i) == -lambda_im(i+1)) then
+
+                  V(:,i) = CMPLX(V_r(:,i), V_r(:,i+1), KIND=RD)
+                  V(:,i+1) = CONJG(V(:,i))
+
+                  i = i + 2
+
+               else
+
+                  @:ABORT('Complex eigenvalue does not have conjugate pair')
+
+               endif
+
+               if(i > ${N}$) exit recon_loop
+
+            end do recon_loop
+
+            ! Finish
+
+            return
+
+         end subroutine reconstruct_eigenvector_
+
+      end subroutine eigen_decompose_${I}$_r_
+
       !****
+
+      subroutine eigen_decompose_${I}$_c_(A, lambda, V_l, V_r)
+
+         complex(RD), intent(inout)    :: A(:,:)
+         complex(RD), intent(out)      :: lambda(:)
+         complex(RD), intent(out)      :: V_l(:,:)
+         complex(RD), intent(out)      :: V_r(:,:)
+
+         complex(RD) :: work(2*${N}$)
+         real(RD)    :: rwork(2*${N}$)
+         integer     :: info
+         integer     :: i
+         complex(RD) :: norm
+
+         @:CHECK_BOUNDS(SIZE(A, 2), ${N}$)
+         @:CHECK_BOUNDS(SIZE(lambda), ${N}$)
+
+         @:CHECK_BOUNDS(SIZE(V_l, 1), ${N}$)
+         @:CHECK_BOUNDS(SIZE(V_l, 2), ${N}$)
+
+         @:CHECK_BOUNDS(SIZE(V_r, 1), ${N}$)
+         @:CHECK_BOUNDS(SIZE(V_r, 2), ${N}$)
+
+         ! Perform the eigendecomposition of A
+
+         call XGEEV('V', 'V', ${N}$, A, ${N}$, lambda, &
+            V_l, ${N}$, V_r, ${N}$, work, SIZE(work, 1), rwork, info)
+         @:ASSERT(info == 0, 'non-zero return from XGEEV')
+
+         V_l = CONJG(TRANSPOSE(V_l))
+
+         ! Renormalize the left eigenvectors so they are orthonormal to
+         ! the right eigenvectors
+
+         do i = 1, ${N}$
+            norm = SUM(V_l(i,:)*V_r(:,i))
+            V_l(i,:) = V_l(i,:)/norm
+         enddo
+
+         ! Finish
+
+         return
+
+      end subroutine eigen_decompose_${I}$_c_
+
+   #:endfor
+
+   !****
+
+   #:for T, S in zip(FLOAT_TYPES, FLOAT_SUFFIXES)
 
       #:for I, N in [ &
             ['2', 2], &
@@ -438,7 +382,7 @@ contains
                reduce_loop: do j = 1, n
 
                   ! Find the pivot row
-                  
+
                   piv = 0._RD
                   i_piv = j
 
