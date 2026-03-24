@@ -29,7 +29,6 @@ module nad_diff_m
    use eqns_m
    use ext_m
    use math_m
-   use model_m
    use num_par_m
    use osc_par_m
    use point_m
