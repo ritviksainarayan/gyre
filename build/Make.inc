@@ -133,7 +133,7 @@ FC := gfortran
 
 MAKEDEP := awk -f makedepf08.awk
 
-FFLAGS += -std=f2018 -finit-real=snan -fmax-errors=25 -fPIC
+FFLAGS += -std=f2018 -finit-real=snan -fmax-errors=25
 
 ifeq ($(FPE),yes)
    FFLAGS += -ffpe-trap=invalid,overflow,zero
@@ -144,7 +144,7 @@ ifeq ($(DEBUG),yes)
              -Wall -Wno-unused-dummy-argument -Wno-maybe-uninitialized \
              -finline-limit=0 -fbacktrace
 else
-   FFLAGS += -O3 -march=native -fno-backtrace -g
+   FFLAGS += -O3 -march=native -flto=auto -fno-backtrace -g
 endif
 
 ifeq ($(OMP),yes)
@@ -152,7 +152,11 @@ ifeq ($(OMP),yes)
 endif
 
 ifeq ($(PORTABLE),yes)
-#   FFLAGS += -ffp-contract=off
+   FFLAGS += -ffp-contract=off
+endif
+
+ifeq ($(SHARED),yes)
+   FFLAGS += -fPIC
 endif
 
 # Rules
@@ -200,6 +204,10 @@ endif
 
 ifeq ($(shell uname -s),Linux)
   LDFLAGS += -Wl,--no-warn-execstack
+endif
+
+ifneq ($(DEBUG),yes)
+  LDFLAGS += -flto=auto
 endif
 
 # Rules

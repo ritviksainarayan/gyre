@@ -22,8 +22,9 @@ EXTERNAL_FORUM_PKG ?= forum
 # Enable debugging (with a performance penalty)
 DEBUG ?= no
 
-# Build & link against shared libraries
-SHARED ?= yes
+# Build & link against shared libraries (with a possible performance
+# penalty)
+SHARED ?= no
 
 # Enable OpenMP parallelization
 OMP ?= yes
@@ -34,9 +35,9 @@ FPE ?= yes
 # Enable correctly rounded math functions
 CRMATH ?= yes
 
-# Enable portable math (for bit-for-bit reproducibility; setting to
-# yes may incur a small performance hit)
-PORTABLE ?= yes
+# Enable portable math for bit-for-bit reproducibility (with a
+# possible performance penalty)
+PORTABLE ?= no
 
 # Use IEEE fortran features
 IEEE ?= yes
