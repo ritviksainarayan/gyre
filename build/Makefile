@@ -129,10 +129,9 @@ sysmtx_SRCS = sysmtx_m.fypp sysmtx_factory_m.fypp \
    banded_sysmtx_m.fypp cyclic_sysmtx_m.fypp rowpp_sysmtx_m.fypp
 
 diff_SRCS = diff_m.fypp diff_factory_m.fypp \
-   colloc_diff_m.fypp \
-   magnus_diff_m.fypp mirk_diff_m.fypp trapz_diff_m.fypp \
-   match_diff_m.fypp
-#   colloc_gl2_diff_m.fypp colloc_gl4_diff_m.fypp colloc_gl6_diff_m.fypp \
+   colloc_gl2_diff_m.fypp colloc_gl4_diff_m.fypp colloc_gl6_diff_m.fypp \
+   magnus_gl2_diff_m.fypp magnus_gl4_diff_m.fypp magnus_gl6_diff_m.fypp \
+   mirk_diff_m.fypp trapz_diff_m.fypp match_diff_m.fypp \
 
 search_SRCS = search_m.fypp bracket_search_m.fypp minmod_search_m.fypp \
    prox_search_m.fypp contour_search_m.fypp file_search_m.fypp

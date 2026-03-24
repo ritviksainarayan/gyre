@@ -26,10 +26,11 @@ module diff_factory_m
    use colloc_gl2_diff_m
    use colloc_gl4_diff_m
    use colloc_gl6_diff_m
-!   use colloc_diff_m
    use diff_m
    use eqns_m
-   use magnus_diff_m
+   use magnus_gl2_diff_m
+   use magnus_gl4_diff_m
+   use magnus_gl6_diff_m
    use match_diff_m
    use mirk_diff_m
    use num_par_m
@@ -88,11 +89,11 @@ contains
 
             select case (nm_p%diff_scheme)
             case ('MAGNUS_GL2')
-               df = magnus_diff_${S}$(eqns_factory, pt_a, pt_b, 'GL2')
+               df = magnus_gl2_diff_${S}$(eqns_factory, pt_a, pt_b)
             case ('MAGNUS_GL4')
-               df = magnus_diff_${S}$(eqns_factory, pt_a, pt_b, 'GL4')
+               df = magnus_gl4_diff_${S}$(eqns_factory, pt_a, pt_b)
             case ('MAGNUS_GL6')
-               df = magnus_diff_${S}$(eqns_factory, pt_a, pt_b, 'GL6')
+               df = magnus_gl6_diff_${S}$(eqns_factory, pt_a, pt_b)
             case ('COLLOC_GL2')
                df = colloc_gl2_diff_${S}$(eqns_factory, pt_a, pt_b)
             case ('COLLOC_GL4')
