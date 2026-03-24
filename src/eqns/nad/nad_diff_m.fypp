@@ -27,7 +27,6 @@ module nad_diff_m
    use diff_m
    use diff_factory_m
    use eqns_m
-   use trapz_diff_m
    use ext_m
    use math_m
    use model_m
@@ -75,6 +74,7 @@ contains
    function nad_diff_t_(cx, pt_a, pt_b, nm_p, os_p) result(df)
 
       use nad_factory_m
+      use trapz_diff_m
 
       type(context_t), pointer, intent(in) :: cx
       type(point_t), intent(in)            :: pt_a
@@ -144,7 +144,9 @@ contains
 
    subroutine build(this, st, E_t, scl)
 
-      use magnus_diff_m
+      use magnus_gl2_diff_m
+      use magnus_gl4_diff_m
+      use magnus_gl6_diff_m
 
       class(nad_diff_t), intent(in)        :: this
       class(state_ct), intent(in)          :: st
@@ -153,6 +155,7 @@ contains
 
       logical, parameter :: MAGNUS_EIGVAL_MASK(3) = [.FALSE.,.FALSE.,.TRUE.]
 
+      logical     :: regularize
       complex(RD) :: A(this%n_e,this%n_e)
       complex(RD) :: lambda(3)
 
@@ -166,8 +169,17 @@ contains
       ! Apply regularization corrections
 
       select type (df => this%df)
+      class is (magnus_gl2_diff_ct)
+         regularize = .TRUE.
+      class is (magnus_gl4_diff_ct)
+         regularize = .TRUE.
+      class is (magnus_gl6_diff_ct)
+         regularize = .TRUE.
+      class default
+         regularize = .FALSE.
+      end select
 
-      class is (magnus_diff_ct)
+      if (regularize) then
 
          ! Rescale by the uncoupled eigenvalues, in order to help the root
          ! finder
@@ -180,7 +192,7 @@ contains
 
          scl = scl*exp(ext_ct(-SUM(lambda, MASK=MAGNUS_EIGVAL_MASK)))
 
-      end select
+      end if
 
       ! Finish
 
