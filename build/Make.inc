@@ -144,7 +144,7 @@ ifeq ($(DEBUG),yes)
              -Wall -Wno-unused-dummy-argument -Wno-maybe-uninitialized \
              -finline-limit=0 -fbacktrace
 else
-   FFLAGS += -O3 -march=native -flto=auto -fno-backtrace -g
+   FFLAGS += -O3 -march=native -fno-backtrace -g
 endif
 
 ifeq ($(OMP),yes)
@@ -204,10 +204,6 @@ endif
 
 ifeq ($(shell uname -s),Linux)
   LDFLAGS += -Wl,--no-warn-execstack
-endif
-
-ifneq ($(DEBUG),yes)
-  LDFLAGS += -flto=auto
 endif
 
 # Rules
