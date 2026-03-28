@@ -44,23 +44,23 @@ module ${P}$_rad_obound_m
 
    type, extends(bound_rt) :: ${P}$_rad_obound_t
       private
-      type(context_t), pointer   :: cx => null()
-      real(RD)                   :: V_2
-      real(RD)                   :: V
-      real(RD)                   :: V_g
-      real(RD)                   :: As
-      real(RD)                   :: U
-      real(RD)                   :: c_1
-      procedure(build_), pointer :: build_
+      type(context_t), pointer    :: cx => null()
+      real(RD)                    :: V_2
+      real(RD)                    :: V
+      real(RD)                    :: V_g
+      real(RD)                    :: As
+      real(RD)                    :: U
+      real(RD)                    :: c_1
+      procedure(eval_B_), pointer :: eval_B_
    contains
       private
-      procedure, public :: build
+      procedure, public :: eval_B
    end type ${P}$_rad_obound_t
 
    ! Interfaces
 
    interface
-      subroutine build_(this, st, B)
+      subroutine eval_B_(this, st, B)
          use forum_m, only: RD
          use state_m
          import ${P}$_rad_obound_t
@@ -68,7 +68,7 @@ module ${P}$_rad_obound_m
          class(${P}$_rad_obound_t), intent(in) :: this
          class(state_rt), intent(in)           :: st
          real(RD), intent(out)                 :: B(:,:)
-      end subroutine build_
+      end subroutine eval_B_
    end interface
 
    interface ${P}$_rad_obound_t
@@ -101,32 +101,32 @@ contains
 
       select case (os_p%outer_bound)
       case ('VACUUM')
-         bd%build_ => build_vacuum_
+         bd%eval_B_ => eval_B_vacuum_
       case ('ZERO_R')
-         bd%build_ => build_zero_r_
+         bd%eval_B_ => eval_B_zero_r_
       case ('DZIEM')
          if (ml%is_vacuum(pt)) then
-            bd%build_ => build_vacuum_
+            bd%eval_B_ => eval_B_vacuum_
          else
-            bd%build_ => build_dziem_
+            bd%eval_B_ => eval_B_dziem_
          end if
       case ('ISOTHERMAL')
          if (ml%is_vacuum(pt)) then
-            bd%build_ => build_vacuum_
+            bd%eval_B_ => eval_B_vacuum_
          else
-            bd%build_ => build_decomp_
+            bd%eval_B_ => eval_B_decomp_
          end if
       case ('UNNO')
          if (ml%is_vacuum(pt)) then
-            bd%build_ => build_vacuum_
+            bd%eval_B_ => eval_B_vacuum_
          else
-            bd%build_ => build_decomp_
+            bd%eval_B_ => eval_B_decomp_
          end if
       case ('JCD')
          if (ml%is_vacuum(pt)) then
-            bd%build_ => build_vacuum_
+            bd%eval_B_ => eval_B_vacuum_
          else
-            bd%build_ => build_jcd_
+            bd%eval_B_ => eval_B_jcd_
          end if
       case default
          @:ABORT('invalid outer_bound')
@@ -174,7 +174,7 @@ contains
 
    !****
 
-   subroutine build(this, st, B)
+   subroutine eval_B(this, st, B)
 
       class(${P}$_rad_obound_t), intent(in) :: this
       class(state_rt), intent(in)           :: st
@@ -182,17 +182,17 @@ contains
 
       ! Evaluate the outer boundary conditions
 
-      call this%build_(st, B)
+      call this%eval_B_(st, B)
 
       ! Finish
 
       return
 
-   end subroutine build
+   end subroutine eval_B
 
    !****
 
-   subroutine build_vacuum_(this, st, B)
+   subroutine eval_B_vacuum_(this, st, B)
 
       class(${P}$_rad_obound_t), intent(in) :: this
       class(state_rt), intent(in)           :: st
@@ -224,11 +224,11 @@ contains
 
       return
 
-   end subroutine build_vacuum_
+   end subroutine eval_B_vacuum_
 
    !****
 
-   subroutine build_zero_r_(this, st, B)
+   subroutine eval_B_zero_r_(this, st, B)
 
       class(${P}$_rad_obound_t), intent(in) :: this
       class(state_rt), intent(in)           :: st
@@ -253,11 +253,11 @@ contains
 
       return
 
-   end subroutine build_zero_r_
+   end subroutine eval_B_zero_r_
 
    !****
 
-   subroutine build_dziem_(this, st, B)
+   subroutine eval_B_dziem_(this, st, B)
 
       class(${P}$_rad_obound_t), intent(in) :: this
       class(state_rt), intent(in)           :: st
@@ -289,11 +289,11 @@ contains
 
       return
 
-   end subroutine build_dziem_
+   end subroutine eval_B_dziem_
 
    !****
 
-   subroutine build_decomp_(this, st, B)
+   subroutine eval_B_decomp_(this, st, B)
 
       class(${P}$_rad_obound_t), intent(in) :: this
       class(state_rt), intent(in)           :: st
@@ -339,11 +339,11 @@ contains
 
       return
 
-   end subroutine build_decomp_
+   end subroutine eval_B_decomp_
 
    !****
 
-   subroutine build_jcd_(this, st, B)
+   subroutine eval_B_jcd_(this, st, B)
 
       class(${P}$_rad_obound_t), intent(in) :: this
       class(state_rt), intent(in)           :: st
@@ -386,6 +386,6 @@ contains
 
       return
 
-   end subroutine build_jcd_
+   end subroutine eval_B_jcd_
 
 end module ${P}$_rad_obound_m

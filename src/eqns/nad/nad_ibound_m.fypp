@@ -44,19 +44,19 @@ module ${P}$_nad_ibound_m
 
    type, extends(bound_ct) :: ${P}$_nad_ibound_t
       private
-      type(context_t), pointer   :: cx => null()
-      real(RD)                   :: V_2
-      real(RD)                   :: c_1
-      procedure(build_), pointer :: build_
+      type(context_t), pointer    :: cx => null()
+      real(RD)                    :: V_2
+      real(RD)                    :: c_1
+      procedure(eval_B_), pointer :: eval_B_
    contains
       private
-      procedure, public :: build
+      procedure, public :: eval_B
    end type ${P}$_nad_ibound_t
 
    ! Interfaces
 
    interface
-      subroutine build_(this, st, B)
+      subroutine eval_B_(this, st, B)
          use forum_m, only: RD
          use state_m
          import ${P}$_nad_ibound_t
@@ -64,7 +64,7 @@ module ${P}$_nad_ibound_m
          class(${P}$_nad_ibound_t), intent(in) :: this
          class(state_ct), intent(in)           :: st
          complex(RD), intent(out)              :: B(:,:)
-      end subroutine build_
+      end subroutine eval_B_
    end interface
 
    interface ${P}$_nad_ibound_t
@@ -98,13 +98,13 @@ contains
       select case (os_p%inner_bound)
       case ('REGULAR')
          @:ASSERT(pt%x == 0._RD, 'boundary condition invalid for x /= 0')
-         bd%build_ => build_regular_
+         bd%eval_B_ => eval_B_regular_
       case ('ZERO_R')
          @:ASSERT(pt%x /= 0._RD, 'boundary condition invalid for x == 0')
-         bd%build_ => build_zero_r_
+         bd%eval_B_ => eval_B_zero_r_
       case ('ZERO_H')
          @:ASSERT(pt%x /= 0._RD, 'boundary condition invalid for x == 0')
-         bd%build_ => build_zero_h_
+         bd%eval_B_ => eval_B_zero_h_
       case default
          @:ABORT('invalid inner_bound')
       end select
@@ -134,7 +134,7 @@ contains
 
    !****
 
-   subroutine build(this, st, B)
+   subroutine eval_B(this, st, B)
 
       class(${P}$_nad_ibound_t), intent(in) :: this
       class(state_ct), intent(in)           :: st
@@ -142,17 +142,17 @@ contains
 
       ! Evaluate the inner boundary conditions
 
-      call this%build_(st, B)
+      call this%eval_B_(st, B)
 
       ! Finish
 
       return
 
-   end subroutine build
+   end subroutine eval_B
 
    !****
 
-   subroutine build_regular_(this, st, B)
+   subroutine eval_B_regular_(this, st, B)
 
       class(${P}$_nad_ibound_t), intent(in) :: this
       class(state_ct), intent(in)           :: st
@@ -191,11 +191,11 @@ contains
 
       return
 
-   end subroutine build_regular_
+   end subroutine eval_B_regular_
 
    !****
 
-   subroutine build_zero_r_(this, st, B)
+   subroutine eval_B_zero_r_(this, st, B)
 
       class(${P}$_nad_ibound_t), intent(in) :: this
       class(state_ct), intent(in)           :: st
@@ -220,11 +220,11 @@ contains
 
       return
 
-   end subroutine build_zero_r_
+   end subroutine eval_B_zero_r_
 
    !****
 
-   subroutine build_zero_h_(this, st, B)
+   subroutine eval_B_zero_h_(this, st, B)
 
       class(${P}$_nad_ibound_t), intent(in) :: this
       class(state_ct), intent(in)           :: st
@@ -262,6 +262,6 @@ contains
 
       return
 
-   end subroutine build_zero_h_
+   end subroutine eval_B_zero_h_
 
 end module ${P}$_nad_ibound_m

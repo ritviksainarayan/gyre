@@ -216,12 +216,12 @@ contains
 
                      if (l == 1) then
 
-                        call de(k)%df%build(st, E_t, this%scl(k))
+                        call de(k)%df%eval_E_t(st, E_t, this%scl(k))
 
                         M_t(:n_e,:n_e) = E_t(:n_e,:)
                         M_t(n_e+1:2*n_e,:n_e) = E_t(n_e+1:,:)
                         
-                        call de(k+l)%df%build(st, E_t, this%scl(k+l))
+                        call de(k+l)%df%eval_E_t(st, E_t, this%scl(k+l))
                         
                         M_t(n_e+1:2*n_e,n_e+1:) = E_t(:n_e,:)
                         M_t(2*n_e+1:,n_e+1:) = E_t(n_e+1:,:)
@@ -340,7 +340,7 @@ contains
                   !$OMP SINGLE
                   if (l == 1 .AND. MOD(n, 2) /= 0) then
 
-                     call de(n)%df%build(st, E_t, this%scl(n))
+                     call de(n)%df%eval_E_t(st, E_t, this%scl(n))
 
                      this%G_t(:,:,n) = E_t(:n_e,:)
                      this%E_t(:,:,n) = E_t(n_e+1:,:)
@@ -374,8 +374,8 @@ contains
                R_t(:n_e,:n_e) = this%G_t(:,:,1)
                R_t(n_e+1:,:n_e) = this%E_t(:,:,1)
 
-               call bd_i%build(st, B_i)
-               call bd_o%build(st, B_o)
+               call bd_i%eval_B(st, B_i)
+               call bd_o%eval_B(st, B_o)
 
                R_t(:n_e,n_e+1:n_e+n_i) = TRANSPOSE(B_i)
                R_t(n_e+1:,n_e+1:n_e+n_i) = 0._RD

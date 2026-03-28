@@ -52,7 +52,7 @@ module magnus_gl4_diff_m
          real(RD)                       :: dx
       contains
          private
-         procedure, public :: build => build_${S}$_
+         procedure, public :: eval_E_t => eval_E_t_${S}$_
       end type magnus_gl4_diff_${S}$
 
       ! Interfaces
@@ -113,7 +113,7 @@ contains
 
       !****
 
-      subroutine build_${S}$_(this, st, E_t, scl)
+      subroutine eval_E_t_${S}$_(this, st, E_t, scl)
 
          class(magnus_gl4_diff_${S}$), intent(in) :: this
          class(state_${S}$), intent(in)           :: st
@@ -123,17 +123,17 @@ contains
          @:CHECK_BOUNDS(SIZE(E_t, 1), 2*this%n_e)
          @:CHECK_BOUNDS(SIZE(E_t, 2), this%n_e)
 
-         ! Build the transposed difference equations
+         ! Evaluate the transposed difference equations
 
          select case(this%n_e)
          case(2)
-            call build_2_()
+            call eval_E_t_2_()
          case(4)
-            call build_4_()
+            call eval_E_t_4_()
          case(6)
-            call build_6_()
+            call eval_E_t_6_()
          case default
-            call build_gen_()
+            call eval_E_t_gen_()
          end select
 
          ! Finish
@@ -148,7 +148,7 @@ contains
             ['6', 6], &
             ['gen', 'this%n_e']]
 
-            subroutine build_${I}$_()
+            subroutine eval_E_t_${I}$_()
 
                ${T}$       :: A_1(${N_E}$,${N_E}$)
                ${T}$       :: A_2(${N_E}$,${N_E}$)
@@ -186,7 +186,7 @@ contains
                   call eigen_decompose_${I}$(Omega_t, lambda, V_l, V_r)
                #:endif
                   
-               ! Build the difference equations
+               ! Evaluate the difference equations
 
                associate (n_e => ${N_E}$)
 
@@ -221,11 +221,11 @@ contains
 
                return
 
-            end subroutine build_${I}$_
+            end subroutine eval_E_t_${I}$_
 
          #:endfor
 
-      end subroutine build_${S}$_
+      end subroutine eval_E_t_${S}$_
 
    #:endfor
 

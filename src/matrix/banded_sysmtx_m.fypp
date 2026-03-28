@@ -219,13 +219,13 @@ contains
 
             ! Build the boundary blocks, and row-scale to unity
 
-            call bd_i%build(st, B_i)
+            call bd_i%eval_B(st, B_i)
             do i = 1, n_i
                scl = MAXVAL(abs(B_i(i,:)))
                this%scl_i(i) = scl
                call this%set_row_(i, 1, B_i(i,:)/scl)
             end do
-            call bd_o%build(st, B_o)
+            call bd_o%eval_B(st, B_o)
             do i = 1, n_o
                scl = MAXVAL(abs(B_o(i,:)))
                this%scl_o(i) = scl
@@ -238,7 +238,7 @@ contains
 
             !$OMP DO PRIVATE(E_t, i, scl)
             do k = 1, n
-               call de(k)%df%build(st, E_t, this%scl(k))
+               call de(k)%df%eval_E_t(st, E_t, this%scl(k))
                do i = 1, n_e
                   scl = MAXVAL(abs(E_t(:,i)))
                   this%scl(k) = this%scl(k)*scl
