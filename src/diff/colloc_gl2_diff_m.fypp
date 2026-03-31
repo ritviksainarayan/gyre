@@ -48,8 +48,9 @@ module colloc_gl2_diff_m
 
       type, extends(diff_${S}$) :: colloc_gl2_diff_${S}$
          private
-         class(eqns_${S}$), allocatable :: eq(:)
-         real(RD)                       :: dx
+         class(eqns_${S}$), allocatable      :: eq(:)
+         real(RD)                            :: dx
+         procedure(eval_E_t_${S}$_), pointer :: eval_E_t_
       contains
          private
          procedure, public :: eval_E_t => eval_E_t_${S}$_
@@ -105,6 +106,17 @@ contains
 
          df%n_e = df%eq(1)%n_e
 
+         select case(df%n_e)
+         case(2)
+            df%eval_E_t_ => eval_E_t_2_${S}$_
+         case(4)
+            df%eval_E_t_ => eval_E_t_4_${S}$_
+         case(6)
+            df%eval_E_t_ => eval_E_t_6_${S}$_
+         case default
+            df%eval_E_t_ => eval_E_t_gen_${S}$_
+         end select
+
          ! Finish
 
          return
@@ -120,64 +132,62 @@ contains
          ${T}$, contiguous, intent(out)           :: E_t(:,:)
          type(ext_${S}$), intent(out)             :: scl
 
-         @:CHECK_BOUNDS(SIZE(E_t, 1), 2*this%n_e)
-         @:CHECK_BOUNDS(SIZE(E_t, 2), this%n_e)
-
          ! Evaluate the transposed difference equations
 
-         select case(this%n_e)
-         case(2)
-            call eval_E_t_2_()
-         case(4)
-            call eval_E_t_4_()
-         case(6)
-            call eval_E_t_6_()
-         case default
-            call eval_E_t_gen_()
-         end select
+         call this%eval_E_t_(st, E_t, scl)
 
          ! Finish
 
          return
 
-      contains
-
-         #:for I, N_E in [ &
-            ['2', 2], &
-            ['4', 4], &
-            ['6', 6], &
-            ['gen', 'this%n_e']]
-
-            subroutine eval_E_t_${I}$_()
-
-               integer :: j
-
-               ! Algorithm note: this is equivalent to the modified
-               ! midpoint method
-
-               associate (n_e => ${N_E}$)
-
-                  call this%eq(1)%eval_A_t(st, this%dx*B_1, E_t(:n_e,:))
-
-                  do concurrent (j = 1:n_e)
-                     E_t(n_e+1:,j) = E_t(:n_e,j)
-                     E_t(j,j) = E_t(j,j) + 1._RD
-                     E_t(j+n_e,j) = E_t(j+n_e,j) - 1._RD
-                  end do
-
-               end associate
-
-               scl = ONE_${S}$
-
-               ! Finish
-
-               return
-
-            end subroutine eval_E_t_${I}$_
-
-         #:endfor
-
       end subroutine eval_E_t_${S}$_
+
+      !****
+
+      #:for I, N_E in [ &
+         ['2', 2], &
+         ['4', 4], &
+         ['6', 6], &
+         ['gen', 'this%n_e']]
+
+         subroutine eval_E_t_${I}$_${S}$_(this, st, E_t, scl)
+
+            class(colloc_gl2_diff_${S}$), intent(in) :: this
+            class(state_${S}$), intent(in)           :: st
+            ${T}$, contiguous, intent(out)           :: E_t(:,:)
+            type(ext_${S}$), intent(out)             :: scl
+
+            integer :: j
+
+            @:CHECK_BOUNDS(SIZE(E_t, 1), 2*this%n_e)
+            @:CHECK_BOUNDS(SIZE(E_t, 2), this%n_e)
+
+            ! Evaluate the transposed difference equations
+
+            ! Algorithm note: this is equivalent to the modified
+            ! midpoint method
+
+            associate (n_e => ${N_E}$)
+
+               call this%eq(1)%eval_A_t(st, this%dx*B_1, E_t(:n_e,:))
+
+               do concurrent (j = 1:n_e)
+                  E_t(n_e+1:,j) = E_t(:n_e,j)
+                  E_t(j,j) = E_t(j,j) + 1._RD
+                  E_t(j+n_e,j) = E_t(j+n_e,j) - 1._RD
+               end do
+
+            end associate
+
+            scl = ONE_${S}$
+
+            ! Finish
+
+            return
+
+         end subroutine eval_E_t_${I}$_${S}$_
+
+      #:endfor
 
    #:endfor
 

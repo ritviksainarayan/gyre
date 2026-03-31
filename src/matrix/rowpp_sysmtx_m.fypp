@@ -47,7 +47,7 @@ module rowpp_sysmtx_m
          ${T}$, allocatable                          :: S_t(:,:,:) ! Super-diagonal infill blocks (transposed)
          type(ext_${S}$), allocatable                :: scl(:)     ! Block scales
          ${T}$, allocatable                          :: D(:)       ! Diagonal products
-         procedure(build_and_factor_${S}$_), pointer :: build_and_factor
+         procedure(build_and_factor_${S}$_), pointer :: build_and_factor_
       contains
          private
          procedure         :: backsub_ => backsub_${S}$_
@@ -121,13 +121,13 @@ contains
          sm%n_o = n_o
 
          if (n_e == 2 .AND. n_i == 1) then
-            sm%build_and_factor => build_and_factor_2_1_${S}$_
+            sm%build_and_factor_ => build_and_factor_2_1_${S}$_
          elseif (n_e == 4 .AND. n_i == 2) then
-            sm%build_and_factor => build_and_factor_4_2_${S}$_
+            sm%build_and_factor_ => build_and_factor_4_2_${S}$_
          elseif (n_e == 6 .AND. n_i == 3) then
-            sm%build_and_factor => build_and_factor_6_3_${S}$_
+            sm%build_and_factor_ => build_and_factor_6_3_${S}$_
          else
-            sm%build_and_factor => build_and_factor_gen_${S}$_
+            sm%build_and_factor_ => build_and_factor_gen_${S}$_
          end if
 
          ! Finish
@@ -481,7 +481,7 @@ contains
 
          ! Build and factorize the sysmtx
 
-         call this%build_and_factor(st, bd_i, bd_o, de)
+         call this%build_and_factor_(st, bd_i, bd_o, de)
 
          ! Evaluate the determinant as the product of the diagonal
          ! elements and block scales
@@ -521,7 +521,7 @@ contains
 
             ! Build and factorize the sysmtx
 
-            call this%build_and_factor(st, bd_i, bd_o, de, full=.TRUE.)
+            call this%build_and_factor_(st, bd_i, bd_o, de, full=.TRUE.)
 
             ! Find the (most) singular element on the diagonal of the
             ! final U block
@@ -601,7 +601,7 @@ contains
 
             ! Build and factorize the sysmtx
 
-            call this%build_and_factor(st, bd_i, bd_o, de, full=.TRUE., f=f)
+            call this%build_and_factor_(st, bd_i, bd_o, de, full=.TRUE., f=f)
 
             ! Use backsubstitution to solve for u_bound
 

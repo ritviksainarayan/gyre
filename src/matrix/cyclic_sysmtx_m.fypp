@@ -220,12 +220,12 @@ contains
 
                         M_t(:n_e,:n_e) = E_t(:n_e,:)
                         M_t(n_e+1:2*n_e,:n_e) = E_t(n_e+1:,:)
-                        
+
                         call de(k+l)%df%eval_E_t(st, E_t, this%scl(k+l))
-                        
+
                         M_t(n_e+1:2*n_e,n_e+1:) = E_t(:n_e,:)
                         M_t(2*n_e+1:,n_e+1:) = E_t(n_e+1:,:)
-                        
+
                         M_t(:n_e,n_e+1:) = 0._RD
                         M_t(2*n_e+1:,:n_e) = 0._RD
 
@@ -324,7 +324,7 @@ contains
                         this%rscl(:,k+l) = rscl(:n_e)
 
                      end if
-                     
+
                      this%G_t(:,:,k) = M_t(:n_e,n_e+1:)
                      this%E_t(:,:,k) = M_t(2*n_e+1:,n_e+1:)
 
@@ -344,7 +344,7 @@ contains
 
                      this%G_t(:,:,n) = E_t(:n_e,:)
                      this%E_t(:,:,n) = E_t(n_e+1:,:)
-                     
+
                      this%rscl(:,n) = 0._RD
 
                      do s = 1, n_e
