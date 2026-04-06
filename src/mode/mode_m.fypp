@@ -261,6 +261,7 @@ contains
          real(RD), optional, intent(in) :: x(:)
 
          integer  :: j
+         real(RD) :: d_21
          real(RD) :: y_2_cross
 
          @:CHECK_BOUNDS(SIZE(y_2), SIZE(y_1))
@@ -282,7 +283,9 @@ contains
 
                ! Solve for the crossing ordinate
 
-               y_2_cross = y_2(j) - y_1(j)*(y_2(j+1) - y_2(j))/(y_1(j+1) - y_1(j))
+               d_21 = (y_2(j+1) - y_2(j))/(y_1(j+1) - y_1(j))
+
+               y_2_cross = y_2(j) - y_1(j)*d_21
 
                if(y_2_cross >= 0._RD) then
                   n_a = n_a + 1
@@ -296,7 +299,9 @@ contains
 
                ! Solve for the crossing ordinate
 
-               y_2_cross = y_2(j) - y_1(j)*(y_2(j+1) - y_2(j))/(y_1(j+1) - y_1(j))
+               d_21 = (y_2(j+1) - y_2(j))/(y_1(j+1) - y_1(j))
+
+               y_2_cross = y_2(j) - y_1(j)*d_21
 
                if (y_2_cross <= 0._RD) then
                   n_a = n_a + 1
