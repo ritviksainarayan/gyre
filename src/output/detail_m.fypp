@@ -162,6 +162,11 @@ contains
       st = wv%state()
       gr = wv%grid()
 
+      if (this%ot_p%detail_file_format == 'HDF' .AND. &
+          this%ot_p%inlist_file /= '') then
+         call write_inlist(this%ot_p%inlist_file, wr)
+      end if
+
       item_loop : do i = 1, SIZE(items)
 
          call write_const_(items(i), wr, written)
