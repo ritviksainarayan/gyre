@@ -105,6 +105,10 @@ program gyre_tides
    call read_tide_par(unit, td_p)
    call read_out_par(unit, 'tides', ot_p)
 
+   ot_p%inlist_file = filename
+
+
+
    close(unit)
 
    ! Check that GYRE_DIR is set
