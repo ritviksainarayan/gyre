@@ -47,6 +47,7 @@ module out_par_m
       character(FILENAME_LEN) :: contour_template = ''
       logical                 :: contour_paths = .TRUE.
       character(256)          :: label = ''
+      character(FILENAME_LEN) :: inlist_file = ''
    end type out_par_t
 
    ! Access specifiers
