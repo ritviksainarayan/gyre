@@ -25,6 +25,7 @@ module out_util_m
 
    use string_m
    use wave_m
+   use writer_m
 
    use ISO_FORTRAN_ENV
 
@@ -35,6 +36,7 @@ module out_util_m
    ! Access specifiers
 
    public :: filter_wave
+   public :: write_inlist
 
    ! Default access
 
@@ -75,5 +77,45 @@ contains
       return
 
    end function filter_wave
+
+subroutine write_inlist(inlist_file, wr)
+
+   character(*), intent(in)       :: inlist_file
+   class(writer_t), intent(inout) :: wr
+
+   integer                       :: unit
+   integer                       :: ios
+   integer                       :: n
+   character(256)                :: line
+   character(256), allocatable   :: lines(:)
+
+
+   open(NEWUNIT=unit, FILE=inlist_file, STATUS='OLD', ACTION='READ')
+
+   n = 0
+   count_loop : do
+      read(unit, '(A)', IOSTAT=ios) line
+      if (ios /= 0) exit count_loop
+      n = n + 1
+   end do count_loop
+
+   ! Second pass: read lines
+
+   rewind(unit)
+   allocate(lines(n))
+
+   n = 0
+   read_loop : do
+      read(unit, '(A)', IOSTAT=ios) line
+      if (ios /= 0) exit read_loop
+      n = n + 1
+      lines(n) = line
+   end do read_loop
+
+   close(unit)
+
+   call wr%write('inlist', lines)
+
+end subroutine write_inlist
 
 end module out_util_m
